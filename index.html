@@ -1056,12 +1056,24 @@ body{overflow-x:hidden}
 .history-item.selected .history-retry{display:inline-flex;align-items:center;justify-content:center}
 .history-retry:hover{background:rgba(75,145,255,.20);color:#1f6ee8}
 .history-retry:disabled{opacity:.5;cursor:not-allowed}
+.history-retry.retry-loading{
+  display:inline-flex!important;
+  align-items:center;
+  justify-content:center;
+  opacity:1;
+  background:rgba(255,122,0,.12);
+  color:#e87519;
+  cursor:not-allowed;
+}
+
+.history-retry.retry-loading .action-spinner{
+  border-color:rgba(232,117,25,.20);
+  border-top-color:#e87519;
+}
 .action-loading{display:inline-flex;align-items:center;justify-content:center;gap:8px}.action-spinner{width:14px;height:14px;border:2px solid rgba(255,255,255,.20);border-top-color:#fff;border-radius:50%;animation:actionSpin .7s linear infinite;flex:none}@keyframes actionSpin{to{transform:rotate(360deg)}}.reset-button.loading,.history-delete.loading{pointer-events:none;opacity:.75}.history-delete.loading{display:inline-flex!important}.history-item.deleting{pointer-events:none;border-color:rgba(255,59,48,.35);background:rgba(255,59,48,.06);animation:deletePulse 1s ease-in-out infinite}@keyframes deletePulse{0%,100%{opacity:1}50%{opacity:.55}}.reset-button.loading{color:#fff;border-color:rgba(255,122,0,.35);background:rgba(255,122,0,.08)}.verify-card{text-align:center;max-width:420px}.verify-icon{width:62px;height:62px;margin:0 auto 16px;display:flex;align-items:center;justify-content:center;border-radius:50%;color:var(--green);font-size:30px;font-weight:950;background:rgba(53,232,137,.10);border:1px solid rgba(53,232,137,.28);box-shadow:0 0 35px rgba(53,232,137,.12);animation:verifyPulse 2s ease-in-out infinite}@keyframes verifyPulse{0%,100%{transform:scale(1);box-shadow:0 0 25px rgba(53,232,137,.10)}50%{transform:scale(1.04);box-shadow:0 0 40px rgba(53,232,137,.20)}}.verify-brand{margin-bottom:20px}.verify-brand .brand-logo{width:52px;height:52px;margin-bottom:10px;border-radius:15px}.verify-brand .brand-logo span{font-size:20px}.verify-brand h1{font-size:22px}.verify-brand p{font-size:9px;margin-top:4px}.verify-content{margin-top:5px}.verify-title{font-size:14px;font-weight:950;letter-spacing:.8px;color:#fff;margin-bottom:9px}.verify-text{color:#858c98;font-size:10px;line-height:1.5}.verify-email{margin:10px 0 13px;padding:10px 12px;border-radius:10px;border:1px solid rgba(255,179,71,.18);background:rgba(255,122,0,.055);color:var(--orange2);font-size:11px;font-weight:900;word-break:break-all}.verify-info{padding:11px;border-radius:11px;background:rgba(75,145,255,.055);border:1px solid rgba(75,145,255,.13);color:#7f8998;font-size:9px;line-height:1.55;margin-bottom:12px}.verify-info b{color:#b8c5d8}.verify-status{min-height:17px;margin-bottom:10px;color:var(--orange2);font-size:9px;font-weight:900;letter-spacing:.6px}.verify-status.success{color:var(--green)}.verify-status.error{color:#ff6b61}.back-login-button{width:100%;margin-top:13px;padding:7px;border:0;background:none;color:#727985;font-size:10px;font-weight:800;cursor:pointer}.back-login-button:hover{color:var(--orange2)}@media(max-width:500px){#verifyModal{padding:10px}.verify-card{padding:22px 18px;border-radius:20px}.verify-icon{width:54px;height:54px;font-size:27px}.verify-brand{margin-bottom:16px}.verify-brand .brand-logo{width:45px;height:45px;border-radius:13px}.verify-brand h1{font-size:19px}.verify-brand p{font-size:8px}.verify-title{font-size:12px}.verify-text{font-size:9px}.verify-email{font-size:10px}.verify-info{font-size:8px}.verify-status{font-size:8px}}</style>
 <style id="DASHBOARD-DESKTOP-LANDSCAPE-FIX">
 /* =========================================================
    THE BUTCHER — DASHBOARD ONLY
-   Desktop + Landscape responsive fix
-   INCOMING TIDAK DISENTUH
 ========================================================= */
 
 /* Wide desktop */
@@ -1407,6 +1419,7 @@ let currentMode="opname";
 let masterData=[];  
 let selectedHistoryItem=null;  
 let historyRows=[];
+let retryLoadingIndex = null;
 let historyRequestVersion=0;
 let historyUnsubscribe=null;
 let historyFirebaseReady=false;  
@@ -3385,8 +3398,21 @@ function renderHistory(){
     let actions="";
 
     if(status==="pending"){
-      statusHtml=`<span class="history-status pending"><span class="history-spinner"></span>MENGIRIM...</span>`;
-    }else if(status==="stale"){
+  statusHtml=`<span class="history-status pending">
+    <span class="history-spinner"></span>
+    ${index===retryLoadingIndex ? "MENGIRIM ULANG..." : "MENGIRIM..."}
+  </span>`;
+
+  if(index===retryLoadingIndex){
+    actions=`<button class="history-retry retry-loading" type="button" disabled>
+      <span class="action-loading">
+        <span class="action-spinner"></span>
+        MENGIRIM...
+      </span>
+    </button>`;
+  }
+}
+    else if(status==="stale"){
       statusHtml=`<span class="history-status stale">⚠ BELUM SELESAI</span>`;
       actions=`<button class="history-retry" type="button" data-history-index="${index}">↻ KIRIM ULANG</button>`;
     }else if(status==="failed"){
@@ -3982,7 +4008,6 @@ function markLocalItemStatus(localId,status){
 /* =====================================================
    RETRY — BISA DARI AKUN MANA PUN
 ===================================================== */
-
 async function retryHistoryItem(index){
   const item=historyRows[index];
   if(!item) return;
@@ -3990,21 +4015,21 @@ async function retryHistoryItem(index){
   const status=historyStatus(item);
   if(status!=="failed" && status!=="stale") return;
 
-  const button=document.querySelector(
-    `[data-history-index="${index}"].history-retry`
-  );
-
-  if(button){
-    button.disabled=true;
-    button.innerHTML=`<span class="action-loading"><span class="action-spinner"></span>MENGIRIM...</span>`;
-  }
+  // Tandai bahwa tombol KIRIM ULANG sedang berjalan
+  retryLoadingIndex=index;
 
   item.__status="pending";
   item.createdAt=Number(item.createdAt)||Number(item.timestampMs)||Date.now();
+
   saveHistoryCache();
   renderHistory();
 
-  await sendInventoryQueueItem(item);
+  try{
+    await sendInventoryQueueItem(item);
+  }finally{
+    retryLoadingIndex=null;
+    renderHistory();
+  }
 }
 
 /* =====================================================  
