@@ -7803,8 +7803,14 @@ body&gt;.app .sup,body&gt;.app .date{color:#7d8692!important;}
 const API_URL='https://script.google.com/macros/s/AKfycbwV6zbDqBBn8udIwFkCfI6NwFEA9UfUjCITbsHrA0aGIODGv3pSmgHfF0jlDgB1jqIr/exec';
 
 let suppliers=[],products=[],n=0,editId=null,incomingType='HALAL',historyType='HALAL',data=[];
-let loggedInUsername='';
+let loggedInUsername=String(window.__TB_LOGIN_USERNAME||'').trim();
 const referenceCache={};
+
+// Isi PIC langsung saat Incoming dibuka. Tidak bergantung pada postMessage.
+// Jika username tidak ada di dropdown, gunakan ISI NAMA LAIN + username.
+setTimeout(function(){
+  if(loggedInUsername) applyLoggedInPic();
+},0);
 
 /* PIC otomatis dari username login, tanpa mengubah dropdown PIC yang sudah ada.
    Jika username cocok dengan opsi PIC, opsi tersebut dipilih otomatis.
@@ -7828,10 +7834,33 @@ function applyLoggedInPic(){
 }
 
 window.addEventListener('message',function(event){
-  if(!event.data || event.data.type!=='TB_LOGIN_USER') return;
+  if(!event.data) return;
+
+  // Incoming meminta username login dari parent/dashboard.
+  if(event.data.type==='TB_REQUEST_LOGIN_USER'){
+    try{
+      const username=window.parent && window.parent!==window
+        ? String(window.parent.currentProfile?.username || window.parent.currentUser?.email || '').trim()
+        : '';
+      event.source?.postMessage({type:'TB_LOGIN_USER',username},'*');
+    }catch(e){}
+    return;
+  }
+
+  if(event.data.type!=='TB_LOGIN_USER') return;
   loggedInUsername=String(event.data.username||'').trim();
   if(!editId) applyLoggedInPic();
 });
+
+// Minta ulang username saat form Incoming sudah siap. Ini membuat PIC tetap
+// otomatis terisi walaupun postMessage awal dari dashboard terlewat.
+setTimeout(function(){
+  try{
+    if(window.parent && window.parent!==window){
+      window.parent.postMessage({type:'TB_REQUEST_LOGIN_USER'},'*');
+    }
+  }catch(e){}
+},150);
 const referenceLoading={};
 
 function page(id){
@@ -8599,6 +8628,27 @@ setHistoryType('HALAL');
 
 
 let incomingLoaded=false;
+
+function syncIncomingUsername(){
+  const frame=document.getElementById("incomingFrame");
+  if(!frame || !frame.contentWindow) return;
+  try{
+    const username=String(currentProfile?.username || currentUser?.email || '').trim();
+    frame.contentWindow.postMessage({type:'TB_LOGIN_USER',username},'*');
+  }catch(err){
+    console.warn('PIC username sync gagal:',err);
+  }
+}
+
+// Terima permintaan username dari iframe Incoming kapan pun dibutuhkan.
+window.addEventListener('message',function(event){
+  if(!event.data || event.data.type!=='TB_REQUEST_LOGIN_USER') return;
+  try{
+    const username=String(currentProfile?.username || currentUser?.email || '').trim();
+    event.source?.postMessage({type:'TB_LOGIN_USER',username},'*');
+  }catch(err){}
+});
+
 function openIncoming(){
   const page=document.getElementById("incomingPage");
   const frame=document.getElementById("incomingFrame");
@@ -8612,19 +8662,24 @@ function openIncoming(){
     try{
       const source=document.getElementById("INCOMING-EDITABLE-CODE");
       const html=source ? source.value : "";
+      const username=String(currentProfile?.username || currentUser?.email || '').trim();
+      // Bootstrap username langsung ke iframe sebelum HTML Incoming dijalankan.
+      // Ini membuat PIC otomatis terisi walaupun postMessage terlambat/terlewat.
+      const bootstrap='<script>window.__TB_LOGIN_USERNAME='+JSON.stringify(username)+';<\/script>';
+      const htmlWithUser=html.replace(/<head>/i,'<head>'+bootstrap);
       frame.onload=()=>{
-        try{
-          const username=currentProfile?.username || currentUser?.email || '';
-          frame.contentWindow.postMessage({type:'TB_LOGIN_USER',username},'*');
-        }catch(err){
-          console.warn('PIC username sync gagal:',err);
-        }
+        syncIncomingUsername();
+        setTimeout(syncIncomingUsername,250);
+        setTimeout(syncIncomingUsername,800);
       };
-      frame.srcdoc=html;
+      frame.srcdoc=htmlWithUser;
       incomingLoaded=true;
     }catch(err){
       console.error("Incoming load error",err);
     }
+  }else{
+    // Saat Incoming dibuka lagi, pastikan PIC kembali mendapat username login.
+    syncIncomingUsername();
   }
 }
 function closeIncoming(){
