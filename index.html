@@ -7919,6 +7919,30 @@ function toggleOtherPic(){
   wrap.style.display=isOther?'block':'none';
   if(!isOther) other.value='';
 }
+
+/* PIC otomatis dari username login dashboard */
+window.setLoggedInUsername=function(username){
+  const name=String(username||'').trim();
+  const pic=document.getElementById('pic');
+  const other=document.getElementById('picOther');
+
+  if(!pic || !name) return;
+
+  const normalized=name.toUpperCase();
+  const option=[...pic.options].find(opt =&gt;
+    String(opt.value||'').trim().toUpperCase()===normalized
+  );
+
+  if(option){
+    pic.value=option.value;
+    toggleOtherPic();
+  }else{
+    pic.value='OTHER';
+    toggleOtherPic();
+    if(other) other.value=name;
+  }
+};
+
 function getPicValue(){
   const pic=document.getElementById('pic');
   return pic.value==='OTHER'?document.getElementById('picOther').value.trim():pic.value;
@@ -8564,68 +8588,12 @@ async function closeScanner(hide=true){
 document.getElementById('hd').value=todayLocal();
 reset();
 setHistoryType('HALAL');
-
-/* AUTO PIC FROM PARENT LOGIN */
-function applyLoggedInPic(username){
-  const name=String(username||'').trim();
-  if(!name)return;
-  const pic=document.getElementById('pic');
-  const other=document.getElementById('picOther');
-  if(!pic)return;
-
-  const wanted=name.toUpperCase();
-  let matched='';
-  Array.from(pic.options).some(opt=>{
-    const value=String(opt.value||opt.textContent||'').trim().toUpperCase();
-    if(value && value!=='OTHER' && value===wanted){
-      matched=opt.value;
-      return true;
-    }
-    return false;
-  });
-
-  if(matched){
-    pic.value=matched;
-    if(typeof toggleOtherPic==='function')toggleOtherPic();
-  }else{
-    pic.value='OTHER';
-    if(other)other.value=name;
-    if(typeof toggleOtherPic==='function')toggleOtherPic();
-  }
-}
-
-window.addEventListener('message',function(event){
-  const data=event.data||{};
-  if(data.type==='SET_INCOMING_PIC'){
-    applyLoggedInPic(data.username);
-  }
-});
 &lt;/script&gt;&lt;/body&gt;&lt;/html&gt;
 </textarea>
 <script id="THE-BUTCHER-INCOMING-INTEGRATION-SCRIPT">
 
 
 let incomingLoaded=false;
-let incomingFrameReady=false;
-
-function getLoggedInUsernameForIncoming(){
-  return String(
-    currentProfile?.username ||
-    currentUser?.email?.split('@')[0] ||
-    ''
-  ).trim();
-}
-
-function sendIncomingPic(){
-  const frame=document.getElementById("incomingFrame");
-  const username=getLoggedInUsernameForIncoming();
-  if(!frame || !username || !frame.contentWindow)return;
-  frame.contentWindow.postMessage({
-    type:"SET_INCOMING_PIC",
-    username:username
-  },"*");
-}
-
 function openIncoming(){
   const page=document.getElementById("incomingPage");
   const frame=document.getElementById("incomingFrame");
@@ -8637,27 +8605,34 @@ function openIncoming(){
   page.classList.add("show");
   page.setAttribute("aria-hidden","false");
 
+  const syncIncomingPIC=()=>{
+    const username=
+      currentProfile?.username||
+      currentUser?.email||
+      "";
+
+    if(!username)return;
+
+    try{
+      frame.contentWindow?.setLoggedInUsername?.(username);
+    }catch(err){
+      console.error("Incoming PIC sync error",err);
+    }
+  };
+
   if(!incomingLoaded){
     try{
       const source=document.getElementById("INCOMING-EDITABLE-CODE");
       const html=source ? source.value : "";
 
-      frame.onload=function(){
-        incomingFrameReady=true;
-        sendIncomingPic();
-        setTimeout(sendIncomingPic,100);
-        setTimeout(sendIncomingPic,400);
-        setTimeout(sendIncomingPic,1000);
-      };
-
+      frame.onload=syncIncomingPIC;
       frame.srcdoc=html;
       incomingLoaded=true;
     }catch(err){
       console.error("Incoming load error",err);
     }
   }else{
-    sendIncomingPic();
-    setTimeout(sendIncomingPic,100);
+    syncIncomingPIC();
   }
 }
 function closeIncoming(){
