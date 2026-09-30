@@ -7803,7 +7803,35 @@ body&gt;.app .sup,body&gt;.app .date{color:#7d8692!important;}
 const API_URL='https://script.google.com/macros/s/AKfycbwV6zbDqBBn8udIwFkCfI6NwFEA9UfUjCITbsHrA0aGIODGv3pSmgHfF0jlDgB1jqIr/exec';
 
 let suppliers=[],products=[],n=0,editId=null,incomingType='HALAL',historyType='HALAL',data=[];
+let loggedInUsername='';
 const referenceCache={};
+
+/* PIC otomatis dari username login, tanpa mengubah dropdown PIC yang sudah ada.
+   Jika username cocok dengan opsi PIC, opsi tersebut dipilih otomatis.
+   Jika tidak cocok, otomatis memakai ISI NAMA LAIN dan mengisi nama username. */
+function applyLoggedInPic(){
+  const pic=document.getElementById('pic');
+  const other=document.getElementById('picOther');
+  if(!pic || !loggedInUsername) return;
+  const username=String(loggedInUsername).trim();
+  if(!username) return;
+  const upper=username.toUpperCase();
+  const option=[...pic.options].find(o=>String(o.value||o.textContent).trim().toUpperCase()===upper);
+  if(option){
+    pic.value=option.value;
+    if(other) other.value='';
+  }else{
+    pic.value='OTHER';
+    if(other) other.value=username;
+  }
+  toggleOtherPic();
+}
+
+window.addEventListener('message',function(event){
+  if(!event.data || event.data.type!=='TB_LOGIN_USER') return;
+  loggedInUsername=String(event.data.username||'').trim();
+  if(!editId) applyLoggedInPic();
+});
 const referenceLoading={};
 
 function page(id){
@@ -7946,6 +7974,7 @@ function reset(){
   document.getElementById('picOther').value='';
   document.getElementById('picOtherWrap').style.display='none';
   toggleOtherPic();
+  applyLoggedInPic();
   productsEl().innerHTML='';n=0;addProduct();
   document.getElementById('formTitle').textContent='Incoming Baru';
   updateIncomingTypeInfo(incomingType);
@@ -8583,6 +8612,14 @@ function openIncoming(){
     try{
       const source=document.getElementById("INCOMING-EDITABLE-CODE");
       const html=source ? source.value : "";
+      frame.onload=()=>{
+        try{
+          const username=currentProfile?.username || currentUser?.email || '';
+          frame.contentWindow.postMessage({type:'TB_LOGIN_USER',username},'*');
+        }catch(err){
+          console.warn('PIC username sync gagal:',err);
+        }
+      };
       frame.srcdoc=html;
       incomingLoaded=true;
     }catch(err){
