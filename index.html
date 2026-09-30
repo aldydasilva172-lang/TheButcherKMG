@@ -8564,96 +8564,74 @@ async function closeScanner(hide=true){
 document.getElementById('hd').value=todayLocal();
 reset();
 setHistoryType('HALAL');
+
+/* AUTO PIC DARI USERNAME LOGIN
+   Dropdown PIC tetap sama dan tetap bisa dipilih manual. */
+(function autoPICFromLogin(){
+  function applyAutoPIC(){
+    try{
+      const profile = window.parent && window.parent.currentProfile
+        ? window.parent.currentProfile
+        : null;
+
+      const user = window.parent && window.parent.currentUser
+        ? window.parent.currentUser
+        : null;
+
+      const username = String(
+        profile?.username ||
+        user?.email ||
+        ''
+      ).trim();
+
+      const pic = document.getElementById('pic');
+      const other = document.getElementById('picOther');
+
+      if(!pic || !username) return;
+
+      const upper = username.toUpperCase();
+      let matched = null;
+
+      Array.from(pic.options).some(function(opt){
+        const value = String(opt.value || '').trim().toUpperCase();
+        const label = String(opt.textContent || '').trim().toUpperCase();
+
+        if(value === upper || label === upper){
+          matched = opt;
+          return true;
+        }
+        return false;
+      });
+
+      if(matched && matched.value !== 'OTHER'){
+        pic.value = matched.value;
+        if(other) other.value = '';
+      }else{
+        pic.value = 'OTHER';
+        if(other) other.value = username;
+      }
+
+      if(typeof toggleOtherPic === 'function'){
+        toggleOtherPic();
+      }
+    }catch(err){
+      console.warn('Auto PIC gagal:', err);
+    }
+  }
+
+  applyAutoPIC();
+
+  setTimeout(applyAutoPIC, 50);
+  setTimeout(applyAutoPIC, 150);
+  setTimeout(applyAutoPIC, 400);
+})();
+
 &lt;/script&gt;&lt;/body&gt;&lt;/html&gt;
 </textarea>
 <script id="THE-BUTCHER-INCOMING-INTEGRATION-SCRIPT">
 
 
 let incomingLoaded=false;
-
-/* =====================================================
-   INCOMING — AUTO PIC DARI USERNAME LOGIN
-   Dropdown PIC TETAP SAMA + tetap bisa dipilih manual.
-===================================================== */
-function getIncomingLoginUsername(){
-  return String(currentProfile?.username || currentUser?.email || '').trim();
-}
-
-function buildIncomingHtmlWithLoginUser(html,username){
-  const safeUsername=JSON.stringify(String(username||''));
-  const bootstrap=`<script>
-window.__TB_LOGIN_USERNAME=${safeUsername};
-(function(){
-  function applyPIC(){
-    try{
-      const username=String(window.__TB_LOGIN_USERNAME||'').trim();
-      const pic=document.getElementById('pic');
-      const other=document.getElementById('picOther');
-      const otherWrap=document.getElementById('picOtherWrap');
-      if(!pic || !username) return false;
-
-      const upper=username.toUpperCase();
-      let matched=null;
-      for(const opt of pic.options){
-        const value=String(opt.value||'').trim().toUpperCase();
-        const text=String(opt.textContent||'').trim().toUpperCase();
-        if(value===upper || text===upper){ matched=opt; break; }
-      }
-
-      if(matched && matched.value!=='OTHER'){
-        pic.value=matched.value;
-        if(other) other.value='';
-      }else{
-        const otherOpt=[...pic.options].find(o=>o.value==='OTHER');
-        if(otherOpt) pic.value='OTHER';
-        if(other) other.value=username;
-      }
-
-      if(typeof window.toggleOtherPic==='function') window.toggleOtherPic();
-      pic.dispatchEvent(new Event('change',{bubbles:true}));
-      return true;
-    }catch(e){
-      console.warn('AUTO PIC error',e);
-      return false;
-    }
-  }
-
-  function run(){
-    if(applyPIC()) return;
-    setTimeout(applyPIC,50);
-    setTimeout(applyPIC,150);
-    setTimeout(applyPIC,400);
-    setTimeout(applyPIC,800);
-  }
-
-  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',run,{once:true});
-  else run();
-
-  window.addEventListener('message',function(event){
-    if(!event.data || event.data.type!=='TB_LOGIN_USER') return;
-    window.__TB_LOGIN_USERNAME=String(event.data.username||'').trim();
-    run();
-  });
-})();
-<\/script>`;
-  const marker=/<\/body>\s*<\/html>\s*$/i;
-  return marker.test(html)
-    ? html.replace(marker,bootstrap+'\n</body></html>')
-    : html+'\n'+bootstrap;
-}
-
-function syncIncomingPIC(){
-  const frame=document.getElementById("incomingFrame");
-  if(!frame || !frame.contentWindow) return;
-  try{
-    const username=getIncomingLoginUsername();
-    frame.contentWindow.__TB_LOGIN_USERNAME=username;
-    frame.contentWindow.postMessage({type:'TB_LOGIN_USER',username},'*');
-  }catch(err){
-    console.warn('Incoming PIC sync gagal:',err);
-  }
-}
-
 function openIncoming(){
   const page=document.getElementById("incomingPage");
   const frame=document.getElementById("incomingFrame");
@@ -8667,25 +8645,11 @@ function openIncoming(){
     try{
       const source=document.getElementById("INCOMING-EDITABLE-CODE");
       const html=source ? source.value : "";
-      const username=getIncomingLoginUsername();
-      const htmlWithUser=buildIncomingHtmlWithLoginUser(html,username);
-
-      frame.onload=()=>{
-        syncIncomingPIC();
-        setTimeout(syncIncomingPIC,100);
-        setTimeout(syncIncomingPIC,400);
-        setTimeout(syncIncomingPIC,1000);
-      };
-
-      frame.srcdoc=htmlWithUser;
+      frame.srcdoc=html;
       incomingLoaded=true;
     }catch(err){
       console.error("Incoming load error",err);
     }
-  }else{
-    syncIncomingPIC();
-    setTimeout(syncIncomingPIC,100);
-    setTimeout(syncIncomingPIC,400);
   }
 }
 function closeIncoming(){
