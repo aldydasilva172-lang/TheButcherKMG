@@ -8630,11 +8630,53 @@ setHistoryType('HALAL');
 
 let incomingLoaded=false;
 
+function getLoggedInUsernameForIncoming(){
+  const u=String(currentProfile?.username || '').trim();
+  if(u) return u;
+  return String(currentUser?.displayName || currentUser?.email || '').trim();
+}
+
+function applyUsernameDirectlyToIncoming(frame){
+  if(!frame || !frame.contentWindow) return false;
+  try{
+    const username=getLoggedInUsernameForIncoming();
+    if(!username) return false;
+    const doc=frame.contentDocument || frame.contentWindow.document;
+    const pic=doc.getElementById('pic');
+    const other=doc.getElementById('picOther');
+    const otherWrap=doc.getElementById('picOtherWrap');
+    if(!pic) return false;
+
+    const upper=username.toUpperCase();
+    const option=[...pic.options].find(o=>String(o.value || o.textContent).trim().toUpperCase()===upper);
+    if(option){
+      pic.value=option.value;
+      if(other) other.value='';
+      if(otherWrap) otherWrap.style.display='none';
+    }else{
+      const otherOption=[...pic.options].find(o=>o.value==='OTHER');
+      if(otherOption) pic.value='OTHER';
+      if(other) other.value=username;
+      if(otherWrap) otherWrap.style.display='block';
+    }
+    pic.dispatchEvent(new Event('change',{bubbles:true}));
+    if(typeof frame.contentWindow.toggleOtherPic==='function') frame.contentWindow.toggleOtherPic();
+    return true;
+  }catch(err){
+    console.warn('PIC direct sync gagal:',err);
+    return false;
+  }
+}
+
 function syncIncomingUsername(){
   const frame=document.getElementById("incomingFrame");
   if(!frame || !frame.contentWindow) return;
   try{
-    const username=String(currentProfile?.username || currentUser?.email || '').trim();
+    const username=getLoggedInUsernameForIncoming();
+    // Cara utama: isi langsung elemen PIC di iframe.
+    applyUsernameDirectlyToIncoming(frame);
+    // Tetap kirim message sebagai fallback agar mekanisme lama tetap bekerja.
+    frame.contentWindow.__TB_LOGIN_USERNAME=username;
     frame.contentWindow.postMessage({type:'TB_LOGIN_USER',username},'*');
   }catch(err){
     console.warn('PIC username sync gagal:',err);
@@ -8645,7 +8687,7 @@ function syncIncomingUsername(){
 window.addEventListener('message',function(event){
   if(!event.data || event.data.type!=='TB_REQUEST_LOGIN_USER') return;
   try{
-    const username=String(currentProfile?.username || currentUser?.email || '').trim();
+    const username=getLoggedInUsernameForIncoming();
     event.source?.postMessage({type:'TB_LOGIN_USER',username},'*');
   }catch(err){}
 });
@@ -8665,17 +8707,18 @@ function openIncoming(){
       const html=source ? source.value : "";
       frame.onload=()=>{
         try{
-          const username=String(currentProfile?.username || currentUser?.email || '').trim();
-          // Set langsung ke window iframe setelah HTML selesai dimuat, lalu kirim message.
-          // Tidak menyisipkan <script> ke srcdoc agar form Incoming tidak blank.
+          const username=getLoggedInUsernameForIncoming();
           frame.contentWindow.__TB_LOGIN_USERNAME=username;
           frame.contentWindow.postMessage({type:'TB_LOGIN_USER',username},'*');
         }catch(err){
           console.warn('PIC username direct sync gagal:',err);
         }
+        // Tunggu DOM form benar-benar tersedia, lalu isi PIC secara langsung.
         syncIncomingUsername();
-        setTimeout(syncIncomingUsername,250);
+        setTimeout(syncIncomingUsername,100);
+        setTimeout(syncIncomingUsername,350);
         setTimeout(syncIncomingUsername,800);
+        setTimeout(syncIncomingUsername,1500);
       };
       frame.srcdoc=html;
       incomingLoaded=true;
