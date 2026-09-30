@@ -7803,65 +7803,7 @@ body&gt;.app .sup,body&gt;.app .date{color:#7d8692!important;}
 const API_URL='https://script.google.com/macros/s/AKfycbwV6zbDqBBn8udIwFkCfI6NwFEA9UfUjCITbsHrA0aGIODGv3pSmgHfF0jlDgB1jqIr/exec';
 
 let suppliers=[],products=[],n=0,editId=null,incomingType='HALAL',historyType='HALAL',data=[];
-let loggedInUsername=String(window.__TB_LOGIN_USERNAME||'').trim();
 const referenceCache={};
-
-/* PIC otomatis dari username login, tanpa mengubah dropdown PIC yang sudah ada.
-   Jika username cocok dengan opsi PIC, opsi tersebut dipilih otomatis.
-   Jika tidak cocok, otomatis memakai ISI NAMA LAIN dan mengisi nama username. */
-function applyLoggedInPic(){
-  const pic=document.getElementById('pic');
-  const other=document.getElementById('picOther');
-  if(!pic || !loggedInUsername) return;
-  const username=String(loggedInUsername).trim();
-  if(!username) return;
-  const upper=username.toUpperCase();
-  const option=[...pic.options].find(o=>String(o.value||o.textContent).trim().toUpperCase()===upper);
-  if(option){
-    pic.value=option.value;
-    if(other) other.value='';
-  }else{
-    pic.value='OTHER';
-    if(other) other.value=username;
-  }
-  toggleOtherPic();
-}
-
-// Jalankan setelah elemen PIC tersedia. Jika username belum datang, akan diisi saat message masuk.
-if(document.readyState==='loading'){
-  document.addEventListener('DOMContentLoaded',function(){ if(loggedInUsername && !editId) applyLoggedInPic(); },{once:true});
-}else if(loggedInUsername && !editId){
-  applyLoggedInPic();
-}
-
-window.addEventListener('message',function(event){
-  if(!event.data) return;
-
-  // Incoming meminta username login dari parent/dashboard.
-  if(event.data.type==='TB_REQUEST_LOGIN_USER'){
-    try{
-      const username=window.parent && window.parent!==window
-        ? String(window.parent.currentProfile?.username || window.parent.currentUser?.email || '').trim()
-        : '';
-      event.source?.postMessage({type:'TB_LOGIN_USER',username},'*');
-    }catch(e){}
-    return;
-  }
-
-  if(event.data.type!=='TB_LOGIN_USER') return;
-  loggedInUsername=String(event.data.username||'').trim();
-  if(!editId) applyLoggedInPic();
-});
-
-// Minta ulang username saat form Incoming sudah siap. Ini membuat PIC tetap
-// otomatis terisi walaupun postMessage awal dari dashboard terlewat.
-setTimeout(function(){
-  try{
-    if(window.parent && window.parent!==window){
-      window.parent.postMessage({type:'TB_REQUEST_LOGIN_USER'},'*');
-    }
-  }catch(e){}
-},150);
 const referenceLoading={};
 
 function page(id){
@@ -8004,7 +7946,6 @@ function reset(){
   document.getElementById('picOther').value='';
   document.getElementById('picOtherWrap').style.display='none';
   toggleOtherPic();
-  applyLoggedInPic();
   productsEl().innerHTML='';n=0;addProduct();
   document.getElementById('formTitle').textContent='Incoming Baru';
   updateIncomingTypeInfo(incomingType);
@@ -8630,67 +8571,88 @@ setHistoryType('HALAL');
 
 let incomingLoaded=false;
 
-function getLoggedInUsernameForIncoming(){
-  const u=String(currentProfile?.username || '').trim();
-  if(u) return u;
-  return String(currentUser?.displayName || currentUser?.email || '').trim();
+/* =====================================================
+   INCOMING — AUTO PIC DARI USERNAME LOGIN
+   Dropdown PIC TETAP SAMA + tetap bisa dipilih manual.
+===================================================== */
+function getIncomingLoginUsername(){
+  return String(currentProfile?.username || currentUser?.email || '').trim();
 }
 
-function applyUsernameDirectlyToIncoming(frame){
-  if(!frame || !frame.contentWindow) return false;
-  try{
-    const username=getLoggedInUsernameForIncoming();
-    if(!username) return false;
-    const doc=frame.contentDocument || frame.contentWindow.document;
-    const pic=doc.getElementById('pic');
-    const other=doc.getElementById('picOther');
-    const otherWrap=doc.getElementById('picOtherWrap');
-    if(!pic) return false;
+function buildIncomingHtmlWithLoginUser(html,username){
+  const safeUsername=JSON.stringify(String(username||''));
+  const bootstrap=`<script>
+window.__TB_LOGIN_USERNAME=${safeUsername};
+(function(){
+  function applyPIC(){
+    try{
+      const username=String(window.__TB_LOGIN_USERNAME||'').trim();
+      const pic=document.getElementById('pic');
+      const other=document.getElementById('picOther');
+      const otherWrap=document.getElementById('picOtherWrap');
+      if(!pic || !username) return false;
 
-    const upper=username.toUpperCase();
-    const option=[...pic.options].find(o=>String(o.value || o.textContent).trim().toUpperCase()===upper);
-    if(option){
-      pic.value=option.value;
-      if(other) other.value='';
-      if(otherWrap) otherWrap.style.display='none';
-    }else{
-      const otherOption=[...pic.options].find(o=>o.value==='OTHER');
-      if(otherOption) pic.value='OTHER';
-      if(other) other.value=username;
-      if(otherWrap) otherWrap.style.display='block';
+      const upper=username.toUpperCase();
+      let matched=null;
+      for(const opt of pic.options){
+        const value=String(opt.value||'').trim().toUpperCase();
+        const text=String(opt.textContent||'').trim().toUpperCase();
+        if(value===upper || text===upper){ matched=opt; break; }
+      }
+
+      if(matched && matched.value!=='OTHER'){
+        pic.value=matched.value;
+        if(other) other.value='';
+      }else{
+        const otherOpt=[...pic.options].find(o=>o.value==='OTHER');
+        if(otherOpt) pic.value='OTHER';
+        if(other) other.value=username;
+      }
+
+      if(typeof window.toggleOtherPic==='function') window.toggleOtherPic();
+      pic.dispatchEvent(new Event('change',{bubbles:true}));
+      return true;
+    }catch(e){
+      console.warn('AUTO PIC error',e);
+      return false;
     }
-    pic.dispatchEvent(new Event('change',{bubbles:true}));
-    if(typeof frame.contentWindow.toggleOtherPic==='function') frame.contentWindow.toggleOtherPic();
-    return true;
-  }catch(err){
-    console.warn('PIC direct sync gagal:',err);
-    return false;
   }
+
+  function run(){
+    if(applyPIC()) return;
+    setTimeout(applyPIC,50);
+    setTimeout(applyPIC,150);
+    setTimeout(applyPIC,400);
+    setTimeout(applyPIC,800);
+  }
+
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',run,{once:true});
+  else run();
+
+  window.addEventListener('message',function(event){
+    if(!event.data || event.data.type!=='TB_LOGIN_USER') return;
+    window.__TB_LOGIN_USERNAME=String(event.data.username||'').trim();
+    run();
+  });
+})();
+<\/script>`;
+  const marker=/<\/body>\s*<\/html>\s*$/i;
+  return marker.test(html)
+    ? html.replace(marker,bootstrap+'\n</body></html>')
+    : html+'\n'+bootstrap;
 }
 
-function syncIncomingUsername(){
+function syncIncomingPIC(){
   const frame=document.getElementById("incomingFrame");
   if(!frame || !frame.contentWindow) return;
   try{
-    const username=getLoggedInUsernameForIncoming();
-    // Cara utama: isi langsung elemen PIC di iframe.
-    applyUsernameDirectlyToIncoming(frame);
-    // Tetap kirim message sebagai fallback agar mekanisme lama tetap bekerja.
+    const username=getIncomingLoginUsername();
     frame.contentWindow.__TB_LOGIN_USERNAME=username;
     frame.contentWindow.postMessage({type:'TB_LOGIN_USER',username},'*');
   }catch(err){
-    console.warn('PIC username sync gagal:',err);
+    console.warn('Incoming PIC sync gagal:',err);
   }
 }
-
-// Terima permintaan username dari iframe Incoming kapan pun dibutuhkan.
-window.addEventListener('message',function(event){
-  if(!event.data || event.data.type!=='TB_REQUEST_LOGIN_USER') return;
-  try{
-    const username=getLoggedInUsernameForIncoming();
-    event.source?.postMessage({type:'TB_LOGIN_USER',username},'*');
-  }catch(err){}
-});
 
 function openIncoming(){
   const page=document.getElementById("incomingPage");
@@ -8705,29 +8667,25 @@ function openIncoming(){
     try{
       const source=document.getElementById("INCOMING-EDITABLE-CODE");
       const html=source ? source.value : "";
+      const username=getIncomingLoginUsername();
+      const htmlWithUser=buildIncomingHtmlWithLoginUser(html,username);
+
       frame.onload=()=>{
-        try{
-          const username=getLoggedInUsernameForIncoming();
-          frame.contentWindow.__TB_LOGIN_USERNAME=username;
-          frame.contentWindow.postMessage({type:'TB_LOGIN_USER',username},'*');
-        }catch(err){
-          console.warn('PIC username direct sync gagal:',err);
-        }
-        // Tunggu DOM form benar-benar tersedia, lalu isi PIC secara langsung.
-        syncIncomingUsername();
-        setTimeout(syncIncomingUsername,100);
-        setTimeout(syncIncomingUsername,350);
-        setTimeout(syncIncomingUsername,800);
-        setTimeout(syncIncomingUsername,1500);
+        syncIncomingPIC();
+        setTimeout(syncIncomingPIC,100);
+        setTimeout(syncIncomingPIC,400);
+        setTimeout(syncIncomingPIC,1000);
       };
-      frame.srcdoc=html;
+
+      frame.srcdoc=htmlWithUser;
       incomingLoaded=true;
     }catch(err){
       console.error("Incoming load error",err);
     }
   }else{
-    // Saat Incoming dibuka lagi, pastikan PIC kembali mendapat username login.
-    syncIncomingUsername();
+    syncIncomingPIC();
+    setTimeout(syncIncomingPIC,100);
+    setTimeout(syncIncomingPIC,400);
   }
 }
 function closeIncoming(){
