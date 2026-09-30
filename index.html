@@ -7806,12 +7806,6 @@ let suppliers=[],products=[],n=0,editId=null,incomingType='HALAL',historyType='H
 let loggedInUsername=String(window.__TB_LOGIN_USERNAME||'').trim();
 const referenceCache={};
 
-// Isi PIC langsung saat Incoming dibuka. Tidak bergantung pada postMessage.
-// Jika username tidak ada di dropdown, gunakan ISI NAMA LAIN + username.
-setTimeout(function(){
-  if(loggedInUsername) applyLoggedInPic();
-},0);
-
 /* PIC otomatis dari username login, tanpa mengubah dropdown PIC yang sudah ada.
    Jika username cocok dengan opsi PIC, opsi tersebut dipilih otomatis.
    Jika tidak cocok, otomatis memakai ISI NAMA LAIN dan mengisi nama username. */
@@ -7831,6 +7825,13 @@ function applyLoggedInPic(){
     if(other) other.value=username;
   }
   toggleOtherPic();
+}
+
+// Jalankan setelah elemen PIC tersedia. Jika username belum datang, akan diisi saat message masuk.
+if(document.readyState==='loading'){
+  document.addEventListener('DOMContentLoaded',function(){ if(loggedInUsername && !editId) applyLoggedInPic(); },{once:true});
+}else if(loggedInUsername && !editId){
+  applyLoggedInPic();
 }
 
 window.addEventListener('message',function(event){
@@ -8662,17 +8663,21 @@ function openIncoming(){
     try{
       const source=document.getElementById("INCOMING-EDITABLE-CODE");
       const html=source ? source.value : "";
-      const username=String(currentProfile?.username || currentUser?.email || '').trim();
-      // Bootstrap username langsung ke iframe sebelum HTML Incoming dijalankan.
-      // Ini membuat PIC otomatis terisi walaupun postMessage terlambat/terlewat.
-      const bootstrap='<script>window.__TB_LOGIN_USERNAME='+JSON.stringify(username)+';<\/script>';
-      const htmlWithUser=html.replace(/<head>/i,'<head>'+bootstrap);
       frame.onload=()=>{
+        try{
+          const username=String(currentProfile?.username || currentUser?.email || '').trim();
+          // Set langsung ke window iframe setelah HTML selesai dimuat, lalu kirim message.
+          // Tidak menyisipkan <script> ke srcdoc agar form Incoming tidak blank.
+          frame.contentWindow.__TB_LOGIN_USERNAME=username;
+          frame.contentWindow.postMessage({type:'TB_LOGIN_USER',username},'*');
+        }catch(err){
+          console.warn('PIC username direct sync gagal:',err);
+        }
         syncIncomingUsername();
         setTimeout(syncIncomingUsername,250);
         setTimeout(syncIncomingUsername,800);
       };
-      frame.srcdoc=htmlWithUser;
+      frame.srcdoc=html;
       incomingLoaded=true;
     }catch(err){
       console.error("Incoming load error",err);
