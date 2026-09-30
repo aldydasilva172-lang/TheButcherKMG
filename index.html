@@ -7757,7 +7757,7 @@ body&gt;.app .sup,body&gt;.app .date{color:#7d8692!important;}
   &lt;div class="type-info-icon"&gt;✓&lt;/div&gt;
   &lt;div&gt;
     &lt;strong class="type-info-title"&gt;INCOMING HALAL&lt;/strong&gt;
-    &lt;span class="type-info-text"&gt;Anda sedang mengerjakan penerimaan barang halal.&lt;/span&gt;
+    &lt;span class="type-info-text"&gt;Note : Jika produk 1 - 5 maka hanya catat 2 produk saja, Jika lebih dari 5 produk catat 4 produk.   &lt;/span&gt;
   &lt;/div&gt;
 &lt;/div&gt;&lt;section class="section"&gt;&lt;div class="st"&gt;&lt;b&gt;INFORMASI PO&lt;/b&gt;&lt;small&gt;PO LEVEL&lt;/small&gt;&lt;/div&gt;&lt;div class="row"&gt;&lt;div class="field"&gt;&lt;label&gt;TANGGAL&lt;/label&gt;&lt;input id="date" type="date"&gt;&lt;/div&gt;&lt;div class="field"&gt;&lt;label&gt;NO. PO&lt;/label&gt;&lt;div class="scan-field"&gt;&lt;input id="po" inputmode="numeric" autocomplete="off" placeholder="12345678" oninput="this.value=this.value.replace(/[^0-9]/g,'')"&gt;&lt;button type="button" class="scan-btn" onclick="openScanner('po')" aria-label="Scan No. PO"&gt;
 &lt;svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"&gt;&lt;path d="M4 7V5a1 1 0 0 1 1-1h2M17 4h2a1 1 0 0 1 1 1v2M20 17v2a1 1 0 0 1-1 1h-2M7 20H5a1 1 0 0 1-1-1v-2"/&gt;&lt;path d="M8 8h8v8H8z"/&gt;&lt;/svg&gt;&lt;/button&gt;&lt;/div&gt;&lt;/div&gt;&lt;/div&gt;&lt;div class="field"&gt;&lt;label&gt;VENDOR / NAMA SUPPLIER&lt;/label&gt;&lt;div class="search scan-field"&gt;&lt;input id="supplier" type="text" autocomplete="off" placeholder="Ketik kode / nama..." oninput="search('supplier',this.value)"&gt;&lt;button type="button" class="scan-btn" onclick="openScanner('supplier')" aria-label="Scan Vendor"&gt;
@@ -7824,7 +7824,7 @@ function updateIncomingTypeInfo(type){
   if(!info)return;
   info.className='incoming-type-info '+(type==='HALAL'?'halal':'nonhalal');
   info.querySelector('.type-info-title').textContent=type==='HALAL'?'INCOMING HALAL':'INCOMING NON HALAL';
-  info.querySelector('.type-info-text').textContent=type==='HALAL'?'Anda sedang mengerjakan penerimaan barang halal.':'Anda sedang mengerjakan penerimaan barang non halal.';
+  info.querySelector('.type-info-text').textContent=type==='HALAL'?'Note : Jika produk 1 - 5 maka hanya catat 2 produk saja, Jika lebih dari 5 produk catat 4 produk.':'Note : Jika produk 1 - 5 maka hanya catat 2 produk saja, Jika lebih dari 5 produk catat 4 produk..';
 }
 
 function assertApiResponse(json){
@@ -7919,30 +7919,6 @@ function toggleOtherPic(){
   wrap.style.display=isOther?'block':'none';
   if(!isOther) other.value='';
 }
-
-/* PIC otomatis dari username login dashboard */
-window.setLoggedInUsername=function(username){
-  const name=String(username||'').trim();
-  const pic=document.getElementById('pic');
-  const other=document.getElementById('picOther');
-
-  if(!pic || !name) return;
-
-  const normalized=name.toUpperCase();
-  const option=[...pic.options].find(opt =&gt;
-    String(opt.value||'').trim().toUpperCase()===normalized
-  );
-
-  if(option){
-    pic.value=option.value;
-    toggleOtherPic();
-  }else{
-    pic.value='OTHER';
-    toggleOtherPic();
-    if(other) other.value=name;
-  }
-};
-
 function getPicValue(){
   const pic=document.getElementById('pic');
   return pic.value==='OTHER'?document.getElementById('picOther').value.trim():pic.value;
@@ -8598,41 +8574,20 @@ function openIncoming(){
   const page=document.getElementById("incomingPage");
   const frame=document.getElementById("incomingFrame");
   if(!page||!frame)return;
-
   document.getElementById("dashboard")?.classList.add("hidden");
   document.getElementById("inventoryPage")?.classList.remove("show");
   document.getElementById("dataBsdPage")?.classList.remove("show");
   page.classList.add("show");
   page.setAttribute("aria-hidden","false");
-
-  const syncIncomingPIC=()=>{
-    const username=
-      currentProfile?.username||
-      currentUser?.email||
-      "";
-
-    if(!username)return;
-
-    try{
-      frame.contentWindow?.setLoggedInUsername?.(username);
-    }catch(err){
-      console.error("Incoming PIC sync error",err);
-    }
-  };
-
   if(!incomingLoaded){
     try{
       const source=document.getElementById("INCOMING-EDITABLE-CODE");
       const html=source ? source.value : "";
-
-      frame.onload=syncIncomingPIC;
       frame.srcdoc=html;
       incomingLoaded=true;
     }catch(err){
       console.error("Incoming load error",err);
     }
-  }else{
-    syncIncomingPIC();
   }
 }
 function closeIncoming(){
