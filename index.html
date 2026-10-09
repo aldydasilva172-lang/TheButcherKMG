@@ -1468,6 +1468,28 @@ function barcodeKey(value){
     .toLowerCase();  
   
 }  
+
+/* Product search: supports initials/prefixes across words, e.g. CH P L -> CHICKEN DRUMSTICK PACK LEAN. */
+function matchesProductInitialQuery(name, query){
+  const q=String(query??'').toLowerCase().trim().split(/\s+/).filter(Boolean);
+  if(q.length<2) return false;
+  const words=String(name??'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim().split(/\s+/).filter(Boolean);
+  if(!words.length) return false;
+  let lastIndex=-1;
+  for(const part of q){
+    let found=-1;
+    for(let i=lastIndex+1;i<words.length;i++){
+      if(words[i].startsWith(part)){found=i;break;}
+    }
+    if(found<0){
+      // Also allow skipping words and matching in any order for compact shorthand.
+      found=words.findIndex(w=>w.startsWith(part));
+    }
+    if(found<0) return false;
+    lastIndex=found;
+  }
+  return true;
+}
   
 /* =====================================================  
    CACHE  
@@ -2951,7 +2973,8 @@ $("barcode")
                 )||  
                 itemName.includes(  
                   searchName  
-                )  
+                )||
+                matchesProductInitialQuery(item.nama, rawValue)
               );  
   
             }  
@@ -7999,6 +8022,22 @@ function ui(){
   document.getElementById('add').style.display=total&gt;=4?'none':'block';
 }
 
+function matchesProductInitialQuery(name, query){
+  const q=String(query||'').toLowerCase().trim().split(/\s+/).filter(Boolean);
+  if(q.length&lt;2)return false;
+  const words=String(name||'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim().split(/\s+/).filter(Boolean);
+  if(!words.length)return false;
+  let last=-1;
+  for(const part of q){
+    let found=-1;
+    for(let i=last+1;i&lt;words.length;i++){if(words[i].startsWith(part)){found=i;break;}}
+    if(found&lt;0)found=words.findIndex(w=&gt;w.startsWith(part));
+    if(found&lt;0)return false;
+    last=found;
+  }
+  return true;
+}
+
 function search(type,q){
   const box=document.getElementById(type==='supplier'?'supplierResults':type+'Results');
   if(!box)return;
@@ -8045,7 +8084,8 @@ function search(type,q){
     return refs
       .join(' ')
       .toLowerCase()
-      .includes(s);
+      .includes(s) ||
+      (type!=='supplier' &amp;&amp; matchesProductInitialQuery(x[2]||x[1]||x[0],s));
   }).slice(0,30);
 
   if(!f.length){
