@@ -1468,28 +1468,6 @@ function barcodeKey(value){
     .toLowerCase();  
   
 }  
-
-/* Product search: supports initials/prefixes across words, e.g. CH P L -> CHICKEN DRUMSTICK PACK LEAN. */
-function matchesProductInitialQuery(name, query){
-  const q=String(query??'').toLowerCase().trim().split(/\s+/).filter(Boolean);
-  if(q.length<2) return false;
-  const words=String(name??'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim().split(/\s+/).filter(Boolean);
-  if(!words.length) return false;
-  let lastIndex=-1;
-  for(const part of q){
-    let found=-1;
-    for(let i=lastIndex+1;i<words.length;i++){
-      if(words[i].startsWith(part)){found=i;break;}
-    }
-    if(found<0){
-      // Also allow skipping words and matching in any order for compact shorthand.
-      found=words.findIndex(w=>w.startsWith(part));
-    }
-    if(found<0) return false;
-    lastIndex=found;
-  }
-  return true;
-}
   
 /* =====================================================  
    CACHE  
@@ -2973,8 +2951,7 @@ $("barcode")
                 )||  
                 itemName.includes(  
                   searchName  
-                )||
-                matchesProductInitialQuery(item.nama, rawValue)
+                )  
               );  
   
             }  
@@ -7838,17 +7815,9 @@ function page(id){
 function newForm(){editId=null;reset();page('typeGate')}
 function selectIncomingType(type){
   incomingType=type;
-  // Pakai referensi khusus kategori terpilih agar HALAL dan NON HALAL tidak tertukar.
-  if(referenceCache[type]){
-    suppliers=referenceCache[type].suppliers;
-    products=referenceCache[type].products;
-  }else{
-    suppliers=[];
-    products=[];
-  }
   updateIncomingTypeInfo(type);
   page('form');
-  loadReferences(type).catch(err=>console.error('Gagal memuat master '+type,err));
+  loadReferences(type);
 }
 function updateIncomingTypeInfo(type){
   const info=document.getElementById('incomingTypeInfo');
@@ -7899,7 +7868,7 @@ async function loadReferences(category){
         apiGet({action:'vendor',category}),
         apiGet({action:'master',category})
       ]);
-      referenceCache[category]={suppliers:normalizeReference(v),products:normalizeProductReference(m)};
+      referenceCache[category]={suppliers:normalizeReference(v),products:normalizeReference(m)};
       suppliers=referenceCache[category].suppliers;
       products=referenceCache[category].products;
     }catch(err){
@@ -7913,60 +7882,22 @@ async function loadReferences(category){
   await referenceLoading[category];
 }
 function normalizeReference(result){
-  const arr=result.data||result.items||result.rows||[];
-
-  return arr.map(x=&gt;{
+  const arr=Array.isArray(result)?result:(result.data||result.items||result.rows||[]);
+  return arr.map(x=>{
     if(Array.isArray(x)){
-      return [
-        x[0]??'', // Kolom A
-        x[1]??'', // Kolom B
-        x[2]??''  // Kolom C
-      ];
+      // Jangan buang kolom tambahan: master NON HALAL bisa punya
+      // kolom nama di posisi berbeda dari master HALAL.
+      const vals=x.map(v=>String(v??'').trim());
+      const isCode=v=>!v||/^[0-9\s.-]+$/.test(v);
+      const nameCandidates=vals.slice(2).filter(v=>v&&!isCode(v));
+      const name=nameCandidates.length?nameCandidates[nameCandidates.length-1]:'';
+      return [vals[0]||'',vals[1]||'',name,...vals.slice(3)];
     }
-
-    return [
-      x.code??x.kode??x.article??x.articleNo??x.id??x.a??'',
-      x.barcode??x.barcodeNo??x.b??'',
-      x.name??x.nama??x.namaSupplier??x.namaProduk??x.productName??x.c??''
-    ];
-  }).filter(x=&gt;x[0]||x[1]||x[2]);
-}
-
-/* Normalisasi master produk lebih toleran untuk file HALAL dan NON HALAL.
-   Format API bisa berbeda; nama produk dipilih dari kolom teks yang paling
-   menyerupai nama, bukan otomatis memakai barcode sebagai nama. */
-function normalizeProductReference(result){
-  const arr=result.data||result.items||result.rows||[];
-  return arr.map(row=&gt;{
-    let values;
-    if(Array.isArray(row)){
-      values=row.map(v=&gt;String(v??'').trim());
-    }else{
-      values=[
-        row.code??row.kode??row.article??row.articleNo??row.id??row.a??'',
-        row.barcode??row.barcodeNo??row.b??'',
-        row.name??row.nama??row.namaProduk??row.productName??row.product_name??row.description??row.desc??row.c??''
-      ].map(v=&gt;String(v??'').trim());
-      const named=row.name??row.nama??row.namaProduk??row.productName??row.product_name??row.description??row.desc;
-      if(named) return [
-        String(row.code??row.kode??row.article??row.articleNo??row.id??row.a??'').trim(),
-        String(row.barcode??row.barcodeNo??row.b??'').trim(),
-        String(named).trim()
-      ];
-    }
-    const nonEmpty=values.map((value,index)=&gt;({value,index})).filter(o=&gt;o.value);
-    const nameCandidates=nonEmpty.filter(o=&gt; /[a-z]/i.test(o.value) &amp;&amp; !/^\d+[.,]?\d*$/.test(o.value));
-    nameCandidates.sort((a,b)=&gt;{
-      const aScore=(/[ ]/.test(a.value)?20:0)+(/[a-z]/i.test(a.value)?10:0)+Math.min(a.value.length,80)/100;
-      const bScore=(/[ ]/.test(b.value)?20:0)+(/[a-z]/i.test(b.value)?10:0)+Math.min(b.value.length,80)/100;
-      return bScore-aScore;
-    });
-    const name=nameCandidates[0]?.value||'';
-    const remaining=nonEmpty.filter(o=&gt;o.value!==name);
-    const article=remaining[0]?.value||'';
-    const barcode=remaining[1]?.value||'';
-    return [article,barcode,name];
-  }).filter(x=&gt;x[0]||x[1]||x[2]);
+    const code=x.code??x.kode??x.article??x.articleNo??x.article_number??x.id??x.a??'';
+    const barcode=x.barcode??x.barcodeNo??x.barcode_number??x.b??'';
+    const name=x.name??x.nama??x.namaSupplier??x.namaProduk??x.nama_produk??x.nama_barang??x.productName??x.product_name??x.itemName??x.description??x.deskripsi??x.c??'';
+    return [code,barcode,name,...Object.values(x).filter(v=>typeof v==='string'&&v.trim()&&v!==name&&v!==code&&v!==barcode)];
+  }).filter(x=>x.some(v=>String(v??'').trim()));
 }
 
 function onCleanChange(){
@@ -8067,138 +7998,86 @@ function ui(){
   document.getElementById('add').style.display=total&gt;=4?'none':'block';
 }
 
-function normalizeSearchText(value){
-  return String(value??'')
-    .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
-    .toLowerCase().replace(/[^a-z0-9]+/g,' ').trim()
-    .replace(/\s+/g,' ');
-}
-
-/* Mencocokkan singkatan per kata dengan urutan yang wajar.
-   Contoh CH P L cocok dengan CHICKEN DRUMSTICK PACK LEAN. */
-function matchesProductInitialQuery(name, query){
-  const q=normalizeSearchText(query).split(' ').filter(Boolean);
-  const words=normalizeSearchText(name).split(' ').filter(Boolean);
-  if(q.length<2 || !words.length) return false;
-  let wordIndex=0;
-  for(const part of q){
-    let found=-1;
-    for(let i=wordIndex;i<words.length;i++){
-      if(words[i].startsWith(part)){found=i;break;}
-    }
-    if(found<0) return false;
-    wordIndex=found+1;
-  }
-  return true;
-}
-
-function scoreProductMatch(item, query){
-  const q=normalizeSearchText(query);
-  if(!q)return 0;
-  const code=normalizeSearchText(item[0]);
-  const barcode=normalizeSearchText(item[1]);
-  const name=normalizeSearchText(item[2]||item[1]||item[0]);
-  const compactQ=q.replace(/\s/g,'');
-  const compactCode=code.replace(/\s/g,'');
-  const compactBarcode=barcode.replace(/\s/g,'');
-  if(q===code || compactQ===compactCode)return 1200;
-  if(q===barcode || compactQ===compactBarcode)return 1150;
-  if(q===name)return 1100;
-  if(name.startsWith(q))return 1000;
-  if(name.includes(q))return 900;
-  const queryParts=q.split(' ').filter(Boolean);
-  const nameWords=name.split(' ').filter(Boolean);
-  if(queryParts.length>1){
-    let pos=0,all=true;
-    for(const part of queryParts){
-      let found=-1;
-      for(let i=pos;i<nameWords.length;i++){
-        if(nameWords[i].startsWith(part)){found=i;break;}
-      }
-      if(found<0){all=false;break;}
-      pos=found+1;
-    }
-    if(all)return 800;
-    if(matchesProductInitialQuery(item[2]||item[1]||item[0],q))return 700;
-  }
-  if(code.includes(q)||compactCode.includes(compactQ))return 650;
-  if(barcode.includes(q)||compactBarcode.includes(compactQ))return 640;
-  const allTokens=queryParts.every(part=>nameWords.some(word=>word.startsWith(part)));
-  if(allTokens)return 500;
-  return 0;
-}
-
-async function search(type,q){
+function search(type,q){
   const box=document.getElementById(type==='supplier'?'supplierResults':type+'Results');
   if(!box)return;
-  const raw=String(q||'').trim();
-  const s=normalizeSearchText(raw);
-  if(!s){box.style.display='none';return;}
 
-  const category=incomingType;
-  // Saat berpindah HALAL/NON HALAL, tunggu master kategori yang benar.
-  const cached=referenceCache[category];
-  if(!cached){
-    box.innerHTML='&lt;div class="res"&gt;Memuat master produk...&lt;/div&gt;';
-    box.style.display='block';
-    try{await loadReferences(category);}catch(err){
-      if(category===incomingType){
-        box.innerHTML='&lt;div class="res"&gt;Master produk gagal dimuat. Coba kembali.&lt;/div&gt;';
-        box.style.display='block';
-      }
-      return;
-    }
-  }
-  // Jangan tampilkan hasil kategori lama jika pengguna sudah pindah kategori.
-  if(category!==incomingType)return;
-  const refs=referenceCache[category]||{suppliers,products};
-  const arr=type==='supplier'?refs.suppliers:refs.products;
-  if(!Array.isArray(arr)||!arr.length){
-    box.innerHTML='&lt;div class="res"&gt;Master '+(type==='supplier'?'supplier':'produk')+' kategori '+esc(category)+' kosong.&lt;/div&gt;';
-    box.style.display='block';
+  const s=String(q||'').toLowerCase().trim();
+
+  if(!s){
+    box.style.display='none';
     return;
   }
 
-  // Kode/article/barcode yang persis cocok diprioritaskan dan langsung dipilih.
-  const exactCode=type==='supplier'?null:arr.find(x=>{
-    const key=normalizeSearchText(raw).replace(/\s/g,'');
-    return key && [x[0],x[1]].some(v=>normalizeSearchText(v).replace(/\s/g,'')===key);
+  const arr=type==='supplier'?suppliers:products;
+  const productName=x=>String(x?.[2]||x?.slice(2).find(v=>v&&!/^[0-9\\s.-]+$/.test(String(v).trim()))||'').trim();
+  const displayName=x=>type==='supplier'?(x[1]||x[2]||x[0]):(productName(x)||x[0]||x[1]);
+
+  /* Jika exact match pada salah satu kolom:
+     Vendor: A/B
+     Produk: A/B/C
+     langsung isi NAMA */
+  const exact=arr.find(x=&gt;{
+    const refs=type==='supplier'
+      ? [x[0],x[1]]
+      : x;
+
+    return refs.some(v=&gt;
+      String(v??'').toLowerCase().trim()===s
+    );
   });
-  if(exactCode){choose(type,exactCode[2]||exactCode[0]||exactCode[1]);return;}
 
-  let ranked;
-  if(type==='supplier'){
-    ranked=arr.map((x,index)=>{
-      const values=[x[0],x[1],x[2]].map(normalizeSearchText);
-      let score=0;
-      if(values.some(v=>v===s))score=1100;
-      else if(values.some(v=>v.startsWith(s)))score=900;
-      else if(values.some(v=>v.includes(s)))score=700;
-      return {x,index,score};
-    }).filter(o=>o.score>0).sort((a,b)=>b.score-a.score||a.index-b.index);
-  }else{
-    ranked=arr.map((x,index)=>({x,index,score:scoreProductMatch(x,raw)}))
-      .filter(o=>o.score>0)
-      .sort((a,b)=>b.score-a.score||a.index-b.index);
+  if(exact){
+    const name=type==='supplier'
+      ? (exact[1]||exact[2]||exact[0])
+      : displayName(exact);
+
+    choose(type,name);
+    return;
   }
-  const f=ranked.slice(0,30).map(o=>o.x);
+
+  /* Pencarian bebas:
+     Produk bisa cari dari A, B, atau C */
+  const f=arr.filter(x=&gt;{
+    const refs=type==='supplier'
+      ? [x[0],x[1]]
+      : x;
+
+    const haystack=refs.join(' ').toLowerCase();
+    const words=s.split(/\\s+/).filter(Boolean);
+    if(words.length>1){
+      const name=type==='supplier'?(x[1]||x[2]||x[0]):productName(x);
+      const nameWords=String(name||'').toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
+      return words.every(w=>nameWords.some(n=>n.startsWith(w)) || haystack.includes(w));
+    }
+    return haystack.includes(s);
+  }).slice(0,30);
+
   if(!f.length){
-    box.innerHTML='&lt;div class="res"&gt;Tidak ditemukan di master '+esc(category)+'.&lt;/div&gt;';
+    box.innerHTML='&lt;div class="res"&gt;Tidak ditemukan&lt;/div&gt;';
     box.style.display='block';
     return;
   }
-  box.innerHTML=f.map(x=>{
-    const name=type==='supplier'?(x[1]||x[2]||x[0]):(x[2]||x[0]||x[1]);
+
+  box.innerHTML=f.map(x=&gt;{
+    const name=displayName(x);
+
     const meta=type==='supplier'
       ? [x[0],x[1]].filter(Boolean).join(' • ')
-      : [x[0]?'ARTICLE: '+x[0]:'',x[1]?'BARCODE: '+x[1]:''].filter(Boolean).join(' • ');
+      : [
+          x[0] ? 'ARTICLE: '+x[0] : '',
+          x[1] ? 'BARCODE: '+x[1] : ''
+        ].filter(Boolean).join(' • ');
+
     return `&lt;div class="res" onclick="choose('${esc(type)}','${esc(name)}')"&gt;
       &lt;b&gt;${esc(name)}&lt;/b&gt;
       ${meta?`&lt;small&gt;${esc(meta)}&lt;/small&gt;`:''}
     &lt;/div&gt;`;
   }).join('');
+
   box.style.display='block';
 }
+
 function choose(type,name){
   const id=type==='supplier'?'supplier':'pn'+type.slice(1);
   const input=document.getElementById(id);
