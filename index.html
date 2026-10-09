@@ -7899,7 +7899,7 @@ async function loadReferences(category){
         apiGet({action:'vendor',category}),
         apiGet({action:'master',category})
       ]);
-      referenceCache[category]={suppliers:normalizeReference(v),products:normalizeReference(m)};
+      referenceCache[category]={suppliers:normalizeReference(v),products:normalizeProductReference(m)};
       suppliers=referenceCache[category].suppliers;
       products=referenceCache[category].products;
     }catch(err){
@@ -7929,6 +7929,43 @@ function normalizeReference(result){
       x.barcode??x.barcodeNo??x.b??'',
       x.name??x.nama??x.namaSupplier??x.namaProduk??x.productName??x.c??''
     ];
+  }).filter(x=&gt;x[0]||x[1]||x[2]);
+}
+
+/* Normalisasi master produk lebih toleran untuk file HALAL dan NON HALAL.
+   Format API bisa berbeda; nama produk dipilih dari kolom teks yang paling
+   menyerupai nama, bukan otomatis memakai barcode sebagai nama. */
+function normalizeProductReference(result){
+  const arr=result.data||result.items||result.rows||[];
+  return arr.map(row=&gt;{
+    let values;
+    if(Array.isArray(row)){
+      values=row.map(v=&gt;String(v??'').trim());
+    }else{
+      values=[
+        row.code??row.kode??row.article??row.articleNo??row.id??row.a??'',
+        row.barcode??row.barcodeNo??row.b??'',
+        row.name??row.nama??row.namaProduk??row.productName??row.product_name??row.description??row.desc??row.c??''
+      ].map(v=&gt;String(v??'').trim());
+      const named=row.name??row.nama??row.namaProduk??row.productName??row.product_name??row.description??row.desc;
+      if(named) return [
+        String(row.code??row.kode??row.article??row.articleNo??row.id??row.a??'').trim(),
+        String(row.barcode??row.barcodeNo??row.b??'').trim(),
+        String(named).trim()
+      ];
+    }
+    const nonEmpty=values.map((value,index)=&gt;({value,index})).filter(o=&gt;o.value);
+    const nameCandidates=nonEmpty.filter(o=&gt; /[a-z]/i.test(o.value) &amp;&amp; !/^\d+[.,]?\d*$/.test(o.value));
+    nameCandidates.sort((a,b)=&gt;{
+      const aScore=(/[ ]/.test(a.value)?20:0)+(/[a-z]/i.test(a.value)?10:0)+Math.min(a.value.length,80)/100;
+      const bScore=(/[ ]/.test(b.value)?20:0)+(/[a-z]/i.test(b.value)?10:0)+Math.min(b.value.length,80)/100;
+      return bScore-aScore;
+    });
+    const name=nameCandidates[0]?.value||'';
+    const remaining=nonEmpty.filter(o=&gt;o.value!==name);
+    const article=remaining[0]?.value||'';
+    const barcode=remaining[1]?.value||'';
+    return [article,barcode,name];
   }).filter(x=&gt;x[0]||x[1]||x[2]);
 }
 
@@ -8127,7 +8164,7 @@ async function search(type,q){
     const key=normalizeSearchText(raw).replace(/\s/g,'');
     return key && [x[0],x[1]].some(v=>normalizeSearchText(v).replace(/\s/g,'')===key);
   });
-  if(exactCode){choose(type,exactCode[2]||exactCode[1]||exactCode[0]);return;}
+  if(exactCode){choose(type,exactCode[2]||exactCode[0]||exactCode[1]);return;}
 
   let ranked;
   if(type==='supplier'){
@@ -8151,7 +8188,7 @@ async function search(type,q){
     return;
   }
   box.innerHTML=f.map(x=>{
-    const name=type==='supplier'?(x[1]||x[2]||x[0]):(x[2]||x[1]||x[0]);
+    const name=type==='supplier'?(x[1]||x[2]||x[0]):(x[2]||x[0]||x[1]);
     const meta=type==='supplier'
       ? [x[0],x[1]].filter(Boolean).join(' • ')
       : [x[0]?'ARTICLE: '+x[0]:'',x[1]?'BARCODE: '+x[1]:''].filter(Boolean).join(' • ');
