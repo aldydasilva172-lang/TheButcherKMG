@@ -7838,9 +7838,17 @@ function page(id){
 function newForm(){editId=null;reset();page('typeGate')}
 function selectIncomingType(type){
   incomingType=type;
+  // Pakai referensi khusus kategori terpilih agar HALAL dan NON HALAL tidak tertukar.
+  if(referenceCache[type]){
+    suppliers=referenceCache[type].suppliers;
+    products=referenceCache[type].products;
+  }else{
+    suppliers=[];
+    products=[];
+  }
   updateIncomingTypeInfo(type);
   page('form');
-  loadReferences(type);
+  loadReferences(type).catch(err=>console.error('Gagal memuat master '+type,err));
 }
 function updateIncomingTypeInfo(type){
   const info=document.getElementById('incomingTypeInfo');
@@ -8022,99 +8030,138 @@ function ui(){
   document.getElementById('add').style.display=total&gt;=4?'none':'block';
 }
 
+function normalizeSearchText(value){
+  return String(value??'')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .toLowerCase().replace(/[^a-z0-9]+/g,' ').trim()
+    .replace(/\s+/g,' ');
+}
+
+/* Mencocokkan singkatan per kata dengan urutan yang wajar.
+   Contoh CH P L cocok dengan CHICKEN DRUMSTICK PACK LEAN. */
 function matchesProductInitialQuery(name, query){
-  const q=String(query||'').toLowerCase().trim().split(/\s+/).filter(Boolean);
-  if(q.length&lt;2)return false;
-  const words=String(name||'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim().split(/\s+/).filter(Boolean);
-  if(!words.length)return false;
-  let last=-1;
+  const q=normalizeSearchText(query).split(' ').filter(Boolean);
+  const words=normalizeSearchText(name).split(' ').filter(Boolean);
+  if(q.length<2 || !words.length) return false;
+  let wordIndex=0;
   for(const part of q){
     let found=-1;
-    for(let i=last+1;i&lt;words.length;i++){if(words[i].startsWith(part)){found=i;break;}}
-    if(found&lt;0)found=words.findIndex(w=&gt;w.startsWith(part));
-    if(found&lt;0)return false;
-    last=found;
+    for(let i=wordIndex;i<words.length;i++){
+      if(words[i].startsWith(part)){found=i;break;}
+    }
+    if(found<0) return false;
+    wordIndex=found+1;
   }
   return true;
 }
 
-function search(type,q){
+function scoreProductMatch(item, query){
+  const q=normalizeSearchText(query);
+  if(!q)return 0;
+  const code=normalizeSearchText(item[0]);
+  const barcode=normalizeSearchText(item[1]);
+  const name=normalizeSearchText(item[2]||item[1]||item[0]);
+  const compactQ=q.replace(/\s/g,'');
+  const compactCode=code.replace(/\s/g,'');
+  const compactBarcode=barcode.replace(/\s/g,'');
+  if(q===code || compactQ===compactCode)return 1200;
+  if(q===barcode || compactQ===compactBarcode)return 1150;
+  if(q===name)return 1100;
+  if(name.startsWith(q))return 1000;
+  if(name.includes(q))return 900;
+  const queryParts=q.split(' ').filter(Boolean);
+  const nameWords=name.split(' ').filter(Boolean);
+  if(queryParts.length>1){
+    let pos=0,all=true;
+    for(const part of queryParts){
+      let found=-1;
+      for(let i=pos;i<nameWords.length;i++){
+        if(nameWords[i].startsWith(part)){found=i;break;}
+      }
+      if(found<0){all=false;break;}
+      pos=found+1;
+    }
+    if(all)return 800;
+    if(matchesProductInitialQuery(item[2]||item[1]||item[0],q))return 700;
+  }
+  if(code.includes(q)||compactCode.includes(compactQ))return 650;
+  if(barcode.includes(q)||compactBarcode.includes(compactQ))return 640;
+  const allTokens=queryParts.every(part=>nameWords.some(word=>word.startsWith(part)));
+  if(allTokens)return 500;
+  return 0;
+}
+
+async function search(type,q){
   const box=document.getElementById(type==='supplier'?'supplierResults':type+'Results');
   if(!box)return;
+  const raw=String(q||'').trim();
+  const s=normalizeSearchText(raw);
+  if(!s){box.style.display='none';return;}
 
-  const s=String(q||'').toLowerCase().trim();
-
-  if(!s){
-    box.style.display='none';
-    return;
+  const category=incomingType;
+  // Saat berpindah HALAL/NON HALAL, tunggu master kategori yang benar.
+  const cached=referenceCache[category];
+  if(!cached){
+    box.innerHTML='&lt;div class="res"&gt;Memuat master produk...&lt;/div&gt;';
+    box.style.display='block';
+    try{await loadReferences(category);}catch(err){
+      if(category===incomingType){
+        box.innerHTML='&lt;div class="res"&gt;Master produk gagal dimuat. Coba kembali.&lt;/div&gt;';
+        box.style.display='block';
+      }
+      return;
+    }
   }
-
-  const arr=type==='supplier'?suppliers:products;
-
-  /* Jika exact match pada salah satu kolom:
-     Vendor: A/B
-     Produk: A/B/C
-     langsung isi NAMA */
-  const exact=arr.find(x=&gt;{
-    const refs=type==='supplier'
-      ? [x[0],x[1]]
-      : [x[0],x[1],x[2]];
-
-    return refs.some(v=&gt;
-      String(v??'').toLowerCase().trim()===s
-    );
-  });
-
-  if(exact){
-    const name=type==='supplier'
-      ? (exact[1]||exact[2]||exact[0])
-      : (exact[2]||exact[1]||exact[0]);
-
-    choose(type,name);
-    return;
-  }
-
-  /* Pencarian bebas:
-     Produk bisa cari dari A, B, atau C */
-  const f=arr.filter(x=&gt;{
-    const refs=type==='supplier'
-      ? [x[0],x[1]]
-      : [x[0],x[1],x[2]];
-
-    return refs
-      .join(' ')
-      .toLowerCase()
-      .includes(s) ||
-      (type!=='supplier' &amp;&amp; matchesProductInitialQuery(x[2]||x[1]||x[0],s));
-  }).slice(0,30);
-
-  if(!f.length){
-    box.innerHTML='&lt;div class="res"&gt;Tidak ditemukan&lt;/div&gt;';
+  // Jangan tampilkan hasil kategori lama jika pengguna sudah pindah kategori.
+  if(category!==incomingType)return;
+  const refs=referenceCache[category]||{suppliers,products};
+  const arr=type==='supplier'?refs.suppliers:refs.products;
+  if(!Array.isArray(arr)||!arr.length){
+    box.innerHTML='&lt;div class="res"&gt;Master '+(type==='supplier'?'supplier':'produk')+' kategori '+esc(category)+' kosong.&lt;/div&gt;';
     box.style.display='block';
     return;
   }
 
-  box.innerHTML=f.map(x=&gt;{
-    const name=type==='supplier'
-      ? (x[1]||x[2]||x[0])
-      : (x[2]||x[1]||x[0]);
+  // Kode/article/barcode yang persis cocok diprioritaskan dan langsung dipilih.
+  const exactCode=type==='supplier'?null:arr.find(x=>{
+    const key=normalizeSearchText(raw).replace(/\s/g,'');
+    return key && [x[0],x[1]].some(v=>normalizeSearchText(v).replace(/\s/g,'')===key);
+  });
+  if(exactCode){choose(type,exactCode[2]||exactCode[1]||exactCode[0]);return;}
 
+  let ranked;
+  if(type==='supplier'){
+    ranked=arr.map((x,index)=>{
+      const values=[x[0],x[1],x[2]].map(normalizeSearchText);
+      let score=0;
+      if(values.some(v=>v===s))score=1100;
+      else if(values.some(v=>v.startsWith(s)))score=900;
+      else if(values.some(v=>v.includes(s)))score=700;
+      return {x,index,score};
+    }).filter(o=>o.score>0).sort((a,b)=>b.score-a.score||a.index-b.index);
+  }else{
+    ranked=arr.map((x,index)=>({x,index,score:scoreProductMatch(x,raw)}))
+      .filter(o=>o.score>0)
+      .sort((a,b)=>b.score-a.score||a.index-b.index);
+  }
+  const f=ranked.slice(0,30).map(o=>o.x);
+  if(!f.length){
+    box.innerHTML='&lt;div class="res"&gt;Tidak ditemukan di master '+esc(category)+'.&lt;/div&gt;';
+    box.style.display='block';
+    return;
+  }
+  box.innerHTML=f.map(x=>{
+    const name=type==='supplier'?(x[1]||x[2]||x[0]):(x[2]||x[1]||x[0]);
     const meta=type==='supplier'
       ? [x[0],x[1]].filter(Boolean).join(' • ')
-      : [
-          x[0] ? 'ARTICLE: '+x[0] : '',
-          x[1] ? 'BARCODE: '+x[1] : ''
-        ].filter(Boolean).join(' • ');
-
+      : [x[0]?'ARTICLE: '+x[0]:'',x[1]?'BARCODE: '+x[1]:''].filter(Boolean).join(' • ');
     return `&lt;div class="res" onclick="choose('${esc(type)}','${esc(name)}')"&gt;
       &lt;b&gt;${esc(name)}&lt;/b&gt;
       ${meta?`&lt;small&gt;${esc(meta)}&lt;/small&gt;`:''}
     &lt;/div&gt;`;
   }).join('');
-
   box.style.display='block';
 }
-
 function choose(type,name){
   const id=type==='supplier'?'supplier':'pn'+type.slice(1);
   const input=document.getElementById(id);
