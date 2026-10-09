@@ -7883,21 +7883,28 @@ async function loadReferences(category){
 }
 function normalizeReference(result){
   const arr=Array.isArray(result)?result:(result.data||result.items||result.rows||[]);
-  return arr.map(x=>{
+  return arr.map(x=&gt;{
     if(Array.isArray(x)){
-      // Jangan buang kolom tambahan: master NON HALAL bisa punya
-      // kolom nama di posisi berbeda dari master HALAL.
-      const vals=x.map(v=>String(v??'').trim());
-      const isCode=v=>!v||/^[0-9\s.-]+$/.test(v);
-      const nameCandidates=vals.slice(2).filter(v=>v&&!isCode(v));
-      const name=nameCandidates.length?nameCandidates[nameCandidates.length-1]:'';
-      return [vals[0]||'',vals[1]||'',name,...vals.slice(3)];
+      const vals=x.slice(0,3).map(v=&gt;String(v??'').trim());
+      // Nama barang harus jadi label utama, walau posisi kolom MASTER berbeda.
+      const textName=vals.find(v=&gt;v && /[A-Za-z]/.test(v) && !/^\d+$/.test(v));
+      if(textName){
+        const rest=vals.filter(v=&gt;v && v!==textName);
+        const nums=rest.filter(v=&gt;/^\d+$/.test(v));
+        return [nums[0]||rest[0]||'',nums[1]||'',textName];
+      }
+      return [vals[0]||'',vals[1]||'',vals[2]||''];
     }
-    const code=x.code??x.kode??x.article??x.articleNo??x.article_number??x.id??x.a??'';
+    const name=x.name??x.nama??x.namaSupplier??x.namaProduk??x.productName??x.product_name??x.description??x.deskripsi??x.c??'';
+    const article=x.code??x.kode??x.article??x.articleNo??x.article_number??x.id??x.a??'';
     const barcode=x.barcode??x.barcodeNo??x.barcode_number??x.b??'';
-    const name=x.name??x.nama??x.namaSupplier??x.namaProduk??x.nama_produk??x.nama_barang??x.productName??x.product_name??x.itemName??x.description??x.deskripsi??x.c??'';
-    return [code,barcode,name,...Object.values(x).filter(v=>typeof v==='string'&&v.trim()&&v!==name&&v!==code&&v!==barcode)];
-  }).filter(x=>x.some(v=>String(v??'').trim()));
+    return [String(article??'').trim(),String(barcode??'').trim(),String(name??'').trim()];
+  }).filter(x=&gt;x[0]||x[1]||x[2]);
+}
+
+function productDisplayName(x){
+  const vals=[x?.[0],x?.[1],x?.[2]].map(v=&gt;String(v??'').trim()).filter(Boolean);
+  return String(x?.[2]||vals.find(v=&gt;/[A-Za-z]/.test(v)&&!/^\d+$/.test(v))||x?.[1]||x?.[0]||'').trim();
 }
 
 function onCleanChange(){
@@ -8010,8 +8017,6 @@ function search(type,q){
   }
 
   const arr=type==='supplier'?suppliers:products;
-  const productName=x=>String(x?.[2]||x?.slice(2).find(v=>v&&!/^[0-9\\s.-]+$/.test(String(v).trim()))||'').trim();
-  const displayName=x=>type==='supplier'?(x[1]||x[2]||x[0]):(productName(x)||x[0]||x[1]);
 
   /* Jika exact match pada salah satu kolom:
      Vendor: A/B
@@ -8020,7 +8025,7 @@ function search(type,q){
   const exact=arr.find(x=&gt;{
     const refs=type==='supplier'
       ? [x[0],x[1]]
-      : x;
+      : [x[0],x[1],x[2]];
 
     return refs.some(v=&gt;
       String(v??'').toLowerCase().trim()===s
@@ -8030,7 +8035,7 @@ function search(type,q){
   if(exact){
     const name=type==='supplier'
       ? (exact[1]||exact[2]||exact[0])
-      : displayName(exact);
+      : productDisplayName(exact);
 
     choose(type,name);
     return;
@@ -8041,16 +8046,12 @@ function search(type,q){
   const f=arr.filter(x=&gt;{
     const refs=type==='supplier'
       ? [x[0],x[1]]
-      : x;
+      : [x[0],x[1],x[2]];
 
-    const haystack=refs.join(' ').toLowerCase();
-    const words=s.split(/\\s+/).filter(Boolean);
-    if(words.length>1){
-      const name=type==='supplier'?(x[1]||x[2]||x[0]):productName(x);
-      const nameWords=String(name||'').toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
-      return words.every(w=>nameWords.some(n=>n.startsWith(w)) || haystack.includes(w));
-    }
-    return haystack.includes(s);
+    return refs
+      .join(' ')
+      .toLowerCase()
+      .includes(s);
   }).slice(0,30);
 
   if(!f.length){
@@ -8060,7 +8061,9 @@ function search(type,q){
   }
 
   box.innerHTML=f.map(x=&gt;{
-    const name=displayName(x);
+    const name=type==='supplier'
+      ? (x[1]||x[2]||x[0])
+      : productDisplayName(x);
 
     const meta=type==='supplier'
       ? [x[0],x[1]].filter(Boolean).join(' • ')
