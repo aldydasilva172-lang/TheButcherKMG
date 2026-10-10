@@ -1,0 +1,161 @@
+PATCH APPS SCRIPT — INCOMING RIWAYAT LEBIH CEPAT
+
+Terapkan 3 perubahan berikut pada Apps Script Incoming yang sekarang.
+Jangan hapus fungsi lain.
+
+============================================================
+1) DI DALAM doGet(e), GANTI BLOK action === "history" MENJADI:
+============================================================
+
+    if (action === "history") {
+
+      return json(
+        getHistory(
+          e.parameter.category,
+          e.parameter.tanggal
+        )
+      );
+
+    }
+
+    if (action === "historyDates") {
+
+      return json(
+        getHistoryDates(
+          e.parameter.category,
+          e.parameter.month
+        )
+      );
+
+    }
+
+============================================================
+2) GANTI SELURUH FUNGSI getHistory(category) YANG LAMA DENGAN:
+============================================================
+
+function getHistory(category, tanggal) {
+
+  category = normalizeCategory(category);
+
+  if (!category) {
+    throw new Error("Kategori wajib dipilih.");
+  }
+
+  const ss = getSpreadsheet(category);
+  const sheet = getIndexSheet(ss);
+  const lastRow = sheet.getLastRow();
+
+  if (lastRow < 2) {
+    return { success: true, category: category, data: [] };
+  }
+
+  const values = sheet.getRange(2, 1, lastRow - 1, 13).getDisplayValues();
+  const targetDate = String(tanggal || "").trim();
+  const result = [];
+
+  values.forEach(function(row) {
+    if (!row[0] || String(row[12] || "").trim().toUpperCase() === "DELETED") {
+      return;
+    }
+
+    // Jika tanggal diminta, hanya ambil transaksi pada tanggal itu.
+    if (targetDate && String(row[2] || "").trim() !== targetDate) {
+      return;
+    }
+
+    let products = [];
+    try {
+      products = JSON.parse(row[9] || "[]");
+    } catch (e) {
+      products = [];
+    }
+
+    result.push({
+      id: row[0],
+      category: row[1],
+      tanggal: row[2],
+      sheet: row[3],
+      startRow: Number(row[4]),
+      endRow: Number(row[5]),
+      noPO: row[7],
+      vendor: row[8],
+      products: products,
+      created: row[10],
+      updated: row[11]
+    });
+  });
+
+  result.reverse();
+
+  return {
+    success: true,
+    category: category,
+    data: result
+  };
+}
+
+============================================================
+3) TAMBAHKAN FUNGSI BARU INI (MISALNYA DI BAWAH getHistory):
+============================================================
+
+function getHistoryDates(category, month) {
+
+  category = normalizeCategory(category);
+
+  if (!category) {
+    throw new Error("Kategori wajib dipilih.");
+  }
+
+  if (!/^\d{4}-\d{2}$/.test(String(month || ""))) {
+    throw new Error("Bulan harus berformat YYYY-MM.");
+  }
+
+  // Hanya membuka file sesuai kategori yang dipilih:
+  // HALAL -> spreadsheet Halal, NON HALAL -> spreadsheet Non Halal.
+  const ss = getSpreadsheet(category);
+  const sheet = getIndexSheet(ss);
+  const lastRow = sheet.getLastRow();
+
+  if (lastRow < 2) {
+    return { success: true, category: category, month: month, data: [] };
+  }
+
+  // Baca index sekali saja, bukan mengirim 28–31 permintaan terpisah.
+  const values = sheet.getRange(2, 1, lastRow - 1, 13).getDisplayValues();
+  const found = {};
+
+  values.forEach(function(row) {
+    const id = String(row[0] || "").trim();
+    const rowCategory = normalizeCategory(row[1]);
+    const date = String(row[2] || "").trim();
+    const status = String(row[12] || "").trim().toUpperCase();
+
+    if (!id || status === "DELETED") return;
+    if (rowCategory !== category) return;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return;
+    if (date.slice(0, 7) !== month) return;
+
+    found[date] = true;
+  });
+
+  const dates = Object.keys(found).sort();
+
+  return {
+    success: true,
+    category: category,
+    month: month,
+    data: dates
+  };
+}
+
+============================================================
+SETELAH MENGEDIT
+============================================================
+
+1. Simpan Apps Script.
+2. Buka Deploy > Manage deployments.
+3. Edit deployment Web App, pilih versi baru, lalu Deploy.
+4. Pastikan URL Web App tetap sama seperti API_URL di HTML.
+5. Uji Incoming Halal dan Non Halal, termasuk riwayat tanggal yang ada dan tanggal kosong.
+
+Catatan: fungsi getHistoryDates membaca sheet _INCOMING_INDEX dalam spreadsheet kategori masing-masing. Status DELETED dikecualikan. Detail riwayat juga difilter berdasarkan tanggal yang dipilih.
