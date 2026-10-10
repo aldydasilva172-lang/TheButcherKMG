@@ -2849,6 +2849,33 @@ async function loadMasterData(
   
 }  
   
+/* =====================================================
+   PRODUCT NAME SEARCH — FULL TEXT + WORD PREFIXES
+   Example: CH P L -> CHICKEN DRUMSTICK PACK LEAN
+===================================================== */
+function productNameMatchesQuery(name, query){
+  const normalize=text=>String(text||"")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g,"")
+    .replace(/[^a-z0-9]+/g," ")
+    .trim()
+    .replace(/\s+/g," ");
+  const n=normalize(name), q=normalize(query);
+  if(!q)return false;
+  if(n.includes(q))return true;
+  const queryParts=q.split(" ").filter(Boolean);
+  const nameParts=n.split(" ").filter(Boolean);
+  if(queryParts.length===1)return nameParts.some(word=>word.startsWith(queryParts[0]));
+  const used=new Set();
+  return queryParts.every(part=>{
+    const index=nameParts.findIndex((word,i)=>!used.has(i)&&word.startsWith(part));
+    if(index<0)return false;
+    used.add(index);
+    return true;
+  });
+}
+
 /* =====================================================  
    BARCODE INPUT  
 ===================================================== */  
@@ -2945,13 +2972,9 @@ $("barcode")
                   )  
                   .trim();  
   
-              return(  
-                itemBarcode.includes(  
-                  searchBarcode  
-                )||  
-                itemName.includes(  
-                  searchName  
-                )  
+              return(
+                (searchBarcode && itemBarcode.includes(searchBarcode))||
+                productNameMatchesQuery(itemName,searchName)
               );  
   
             }  
@@ -7999,6 +8022,25 @@ function ui(){
   document.getElementById('add').style.display=total&gt;=4?'none':'block';
 }
 
+function incomingProductNameMatchesQuery(name,query){
+  const normalize=text=>String(text||'').toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .replace(/[^a-z0-9]+/g,' ').trim().replace(/\s+/g,' ');
+  const n=normalize(name),q=normalize(query);
+  if(!q)return false;
+  if(n.includes(q))return true;
+  const queryParts=q.split(' ').filter(Boolean);
+  const nameParts=n.split(' ').filter(Boolean);
+  if(queryParts.length===1)return nameParts.some(word=>word.startsWith(queryParts[0]));
+  const used=new Set();
+  return queryParts.every(part=>{
+    const index=nameParts.findIndex((word,i)=>!used.has(i)&&word.startsWith(part));
+    if(index<0)return false;
+    used.add(index);
+    return true;
+  });
+}
+
 function search(type,q){
   const box=document.getElementById(type==='supplier'?'supplierResults':type+'Results');
   if(!box)return;
@@ -8037,15 +8079,14 @@ function search(type,q){
 
   /* Pencarian bebas:
      Produk bisa cari dari A, B, atau C */
-  const f=arr.filter(x=&gt;{
-    const refs=type==='supplier'
-      ? [x[0],x[1]]
-      : [x[0],x[1],x[2]];
-
-    return refs
-      .join(' ')
-      .toLowerCase()
-      .includes(s);
+  const f=arr.filter(x=>{
+    if(type==='supplier'){
+      return [x[0],x[1],x[2]].filter(Boolean).join(' ').toLowerCase().includes(s);
+    }
+    const refs=[x[0],x[1],x[2]];
+    const refMatch=refs.filter(Boolean).join(' ').toLowerCase().includes(s);
+    const name=x[2]||x[1]||x[0];
+    return refMatch || incomingProductNameMatchesQuery(name,s);
   }).slice(0,30);
 
   if(!f.length){
