@@ -1446,11 +1446,11 @@ function $(id){
 function escapeHtml(value){  
   
   return String(value??"")  
-    .replace(/&/g,"&amp;")  
-    .replace(/</g,"&lt;")  
-    .replace(/>/g,"&gt;")  
-    .replace(/"/g,"&quot;")  
-    .replace(/'/g,"&#039;");  
+    .replace(/&/g,"&")  
+    .replace(/</g,"<")  
+    .replace(/>/g,">")  
+    .replace(/"/g,""")  
+    .replace(/'/g,"'");  
   
 }  
   
@@ -8200,6 +8200,7 @@ async function save(){
     if(!result.success)throw new Error(result.message||'Data gagal disimpan');
 
     editId=result.id||result.data?.id||editId||null;
+    Object.keys(historyDateCache).forEach(k=>{if(k.startsWith(x.category+'|'))delete historyDateCache[k];});
 
     // Success animation
     btn.classList.remove('save-processing');
@@ -8264,8 +8265,8 @@ async function loadAvailableHistoryDates(selectedDate,category){
   const d=String(selectedDate||todayLocal());
   const parts=d.split('-');
   if(parts.length!==3)return [];
-  const year=Number(parts[0]),month=Number(parts[1]);
-  const key=category+'|'+parts[0]+'-'+parts[1];
+  const monthKey=parts[0]+'-'+parts[1];
+  const key=category+'|'+monthKey;
   historyDateLoadKey=key;
   const renderChips=(dates)=>{
     if(historyDateLoadKey!==key)return;
@@ -8280,43 +8281,20 @@ async function loadAvailableHistoryDates(selectedDate,category){
     return dates||[];
   }
   box.innerHTML='<span style="font-size:11px;color:#8b929d">Memuat tanggal...</span>';
-  const days=new Date(year,month,0).getDate();
   historyDatePending[key]=(async()=>{
-    const checks=[];
-    for(let day=1;day<=days;day++){
-      const date=parts[0]+'-'+parts[1]+'-'+String(day).padStart(2,'0');
-      checks.push({date});
-    }
-    const found=[];
-    // Batas paralel agar lebih cepat tanpa mengirim seluruh permintaan sekaligus.
-    const concurrency=8;
-    for(let i=0;i<checks.length;i+=concurrency){
-      const batch=checks.slice(i,i+concurrency);
-      const results=await Promise.all(batch.map(async item=>{
-        try{
-          const result=await apiGet({action:'history',category,tanggal:item.date});
-          const rows=result.data||result.items||result.rows||[];
-          return rows.length?item.date:null;
-        }catch(err){
-          console.warn('Cek tanggal riwayat gagal:',item.date,err);
-          return null;
-        }
-      }));
-      if(historyDateLoadKey!==key){}
-      found.push(...results.filter(Boolean));
-    }
-    found.sort();
-    historyDateCache[key]=found;
-    return found;
+    const result=await apiGet({action:'historyDates',category,month:monthKey});
+    const rows=result.data||result.dates||[];
+    return [...new Set(rows.map(x=>typeof x==='string'?x:(x.tanggal||x.date||'')).filter(x=>/^\d{4}-\d{2}-\d{2}$/.test(x)))].sort();
   })();
   try{
     const dates=await historyDatePending[key];
+    historyDateCache[key]=dates;
     delete historyDatePending[key];
     renderChips(dates);
     return dates;
   }catch(err){
     delete historyDatePending[key];
-    if(historyDateLoadKey===key)box.innerHTML='<span style="font-size:11px;color:#8b929d">Tanggal terisi belum dapat dimuat.</span>';
+    if(historyDateLoadKey===key)box.innerHTML='<span style="font-size:11px;color:#c8463e">Tanggal terisi gagal dimuat: '+esc(err.message)+'</span>';
     return [];
   }
 }
