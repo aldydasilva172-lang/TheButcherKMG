@@ -1446,11 +1446,11 @@ function $(id){
 function escapeHtml(value){  
   
   return String(value??"")  
-    .replace(/&/g,"&")  
-    .replace(/</g,"<")  
-    .replace(/>/g,">")  
-    .replace(/"/g,""")  
-    .replace(/'/g,"'");  
+    .replace(/&/g,"&amp;")  
+    .replace(/</g,"&lt;")  
+    .replace(/>/g,"&gt;")  
+    .replace(/"/g,"&quot;")  
+    .replace(/'/g,"&#039;");  
   
 }  
   
@@ -2849,31 +2849,447 @@ async function loadMasterData(
   
 }  
   
-/* =====================================================
-   PRODUCT NAME SEARCH — FULL TEXT + WORD PREFIXES
-   Example: CH P L -> CHICKEN DRUMSTICK PACK LEAN
-===================================================== */
-function productNameMatchesQuery(name, query){
-  const normalize=text=>String(text||"")
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g,"")
-    .replace(/[^a-z0-9]+/g," ")
-    .trim()
-    .replace(/\s+/g," ");
-  const n=normalize(name), q=normalize(query);
-  if(!q)return false;
-  if(n.includes(q))return true;
-  const queryParts=q.split(" ").filter(Boolean);
-  const nameParts=n.split(" ").filter(Boolean);
-  if(queryParts.length===1)return nameParts.some(word=>word.startsWith(queryParts[0]));
-  const used=new Set();
-  return queryParts.every(part=>{
-    const index=nameParts.findIndex((word,i)=>!used.has(i)&&word.startsWith(part));
-    if(index<0)return false;
-    used.add(index);
-    return true;
-  });
+/* =====================================================  
+   BARCODE INPUT  
+===================================================== */  
+  
+$("barcode")  
+  .addEventListener(  
+    "input",  
+    function(){  
+  
+      const rawValue=  
+        String(  
+          this.value||""  
+        ).trim();  
+  
+      if(!rawValue){  
+  
+        $("suggestions")  
+          .innerHTML="";  
+  
+        $("suggestions")  
+          .style.display=  
+          "none";  
+  
+        clearProductName();  
+  
+        return;  
+      }  
+  
+      const barcodeValue=  
+        normalizeBarcode(  
+          rawValue  
+        );  
+  
+      if(  
+        barcodeValue.length===13 &&  
+        /^20\d{11}$/.test(  
+          barcodeValue  
+        )  
+      ){  
+  
+        processWeighedBarcode(  
+          barcodeValue  
+        );  
+  
+        return;  
+      }  
+  
+      if(!masterData.length){  
+  
+        $("suggestions")  
+          .innerHTML="";  
+  
+        $("suggestions")  
+          .style.display=  
+          "none";  
+  
+        clearProductName();  
+  
+        return;  
+      }  
+  
+      const searchName=  
+        rawValue  
+          .toLowerCase()  
+          .replace(  
+            /\s+/g,  
+            " "  
+          )  
+          .trim();  
+  
+      const searchBarcode=  
+        barcodeKey(  
+          barcodeValue  
+        );  
+  
+      const result=  
+        masterData  
+          .filter(  
+            item=>{  
+  
+              const itemBarcode=  
+                barcodeKey(  
+                  item.barcode  
+                );  
+  
+              const itemName=  
+                String(  
+                  item.nama||""  
+                )  
+                  .toLowerCase()  
+                  .replace(  
+                    /\s+/g,  
+                    " "  
+                  )  
+                  .trim();  
+  
+              return(  
+                itemBarcode.includes(  
+                  searchBarcode  
+                )||  
+                itemName.includes(  
+                  searchName  
+                )  
+              );  
+  
+            }  
+          )  
+          .slice(  
+            0,  
+            20  
+          );  
+  
+      if(!result.length){  
+  
+        $("suggestions")  
+          .innerHTML="";  
+  
+        $("suggestions")  
+          .style.display=  
+          "none";  
+  
+        updateProductName(  
+          barcodeValue  
+        );  
+  
+        return;  
+      }  
+  
+      const exact=  
+        result.find(  
+          item=>  
+            barcodeKey(  
+              item.barcode  
+            )===  
+            searchBarcode  
+        );  
+  
+      if(exact){  
+  
+        updateProductName(  
+          exact.barcode  
+        );  
+  
+      }else{  
+  
+        clearProductName();  
+  
+      }  
+  
+      $("suggestions")  
+        .innerHTML=  
+          result  
+            .map(  
+              item=>`  
+  
+                <div  
+                  class="suggestion-item"  
+                  data-barcode="${escapeHtml(item.barcode)}"  
+                >  
+  
+                  <div class="suggestion-barcode">  
+                    ${escapeHtml(item.barcode)}  
+                  </div>  
+  
+                  <div class="suggestion-name">  
+  
+                    ${escapeHtml(item.nama)}  
+  
+                    ${  
+                      getProductUnit(item)  
+                        ? ` • ${escapeHtml(  
+                            normalizeUnit(  
+                              getProductUnit(item)  
+                            )  
+                          )}`  
+                        : ""  
+                    }  
+  
+                  </div>  
+  
+                </div>  
+  
+              `  
+            )  
+            .join("");  
+  
+      $("suggestions")  
+        .style.display=  
+          "block";  
+  
+      $("suggestions")  
+        .querySelectorAll(  
+          ".suggestion-item"  
+        )  
+        .forEach(  
+          el=>{  
+  
+            el.addEventListener(  
+              "click",  
+              ()=>{  
+  
+                const selectedBarcode=  
+                  el.dataset.barcode;  
+  
+                $("barcode")  
+                  .value=  
+                  selectedBarcode;  
+  
+                $("suggestions")  
+                  .innerHTML="";  
+  
+                $("suggestions")  
+                  .style.display=  
+                    "none";  
+  
+                updateProductName(  
+                  selectedBarcode  
+                );  
+  
+                $("qty").focus();  
+  
+              }  
+            );  
+  
+          }  
+        );  
+  
+    }  
+  );  
+  
+/* =====================================================  
+   BARCODE ENTER  
+===================================================== */  
+  
+$("barcode")  
+  .addEventListener(  
+    "keydown",  
+    function(e){  
+  
+      if(e.key!=="Enter")  
+        return;  
+  
+      e.preventDefault();  
+  
+      const value=  
+        normalizeBarcode(  
+          this.value  
+        );  
+  
+      if(  
+        value.length===13 &&  
+        /^20\d{11}$/.test(  
+          value  
+        )  
+      ){  
+  
+        processWeighedBarcode(  
+          value  
+        );  
+  
+        setTimeout(  
+          ()=>$("qty").focus(),  
+          20  
+        );  
+  
+        return;  
+      }  
+  
+      updateProductName(  
+        value  
+      );  
+  
+      $("suggestions")  
+        .style.display=  
+          "none";  
+  
+      $("qty").focus();  
+  
+    }  
+  );  
+  
+/* =====================================================  
+   WEIGHT BARCODE  
+===================================================== */  
+  
+function processWeighedBarcode(  
+  value  
+){  
+  
+  if(  
+    !value||  
+    value.length!==13||  
+    !/^\d{13}$/.test(value)||  
+    !value.startsWith("20")  
+  )  
+    return false;  
+  
+  const productBarcode=  
+    value.substring(  
+      2,  
+      7  
+    );  
+  
+  const rawQty=  
+    value.substring(  
+      7,  
+      12  
+    );  
+  
+  const grams=  
+    parseInt(  
+      rawQty,  
+      10  
+    );  
+  
+  if(  
+    !Number.isFinite(  
+      grams  
+    )  
+  )  
+    return false;  
+  
+  const qty=  
+    grams/1000;  
+  
+  $("barcode").value=  
+    productBarcode;  
+  
+  let qtyDisplay=  
+    qty  
+      .toFixed(3)  
+      .replace(  
+        /\.?0+$/,  
+        ""  
+      )  
+      .replace(  
+        ".",  
+        ","  
+      );  
+  
+  $("qty").value=  
+    qtyDisplay;  
+  
+  $("suggestions")  
+    .style.display=  
+      "none";  
+  
+  const product=  
+    updateProductName(  
+      productBarcode  
+    );  
+  
+  showToast(  
+    (  
+      product?.nama||  
+      "Kode "+productBarcode  
+    )+  
+    " • "+  
+    qtyDisplay+  
+    " KG",  
+    "success"  
+  );  
+  
+  return true;  
+  
+}  
+  
+/* =====================================================  
+   QTY  
+===================================================== */  
+  
+function parseQty(value){  
+  
+  let text=  
+    String(value??"")  
+      .trim()  
+      .replace(  
+        /\s/g,  
+        ""  
+      );  
+  
+  if(!text)  
+    return NaN;  
+  
+  if(  
+    text.includes(",")&&  
+    text.includes(".")  
+  ){  
+  
+    if(  
+      text.lastIndexOf(",")>  
+      text.lastIndexOf(".")  
+    ){  
+  
+      text=  
+        text  
+          .replace(  
+            /\./g,  
+            ""  
+          )  
+          .replace(  
+            ",",  
+            "."  
+          );  
+  
+    }else{  
+  
+      text=  
+        text.replace(  
+          /,/g,  
+          ""  
+        );  
+  
+    }  
+  
+  }else if(  
+    text.includes(",")  
+  ){  
+  
+    text=  
+      text.replace(  
+        ",",  
+        "."  
+      );  
+  
+  }  
+  
+  return Number(text);  
+  
+}  
+  
+/* =====================================================  
+   HISTORY STATUS  
+===================================================== */  
+  
+const SEND_STALE_MS=15000;
+
+function historyStatus(item){
+  if(!item) return "sent";
+  if(item.__status==="pending" && isStalePending(item)) return "stale";
+  return item.__status||"sent";
 }
 
 /* =====================================================  
