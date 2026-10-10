@@ -7795,7 +7795,7 @@ body&gt;.app .sup,body&gt;.app .date{color:#7d8692!important;}
 &lt;label class="choice on"&gt;&lt;input type="radio" name="historyType" value="HALAL" checked onchange="setHistoryType('HALAL')"&gt;HALAL&lt;/label&gt;
 &lt;label class="choice"&gt;&lt;input type="radio" name="historyType" value="NON HALAL" onchange="setHistoryType('NON HALAL')"&gt;NON HALAL&lt;/label&gt;
 &lt;/div&gt;&lt;/div&gt;
-&lt;div class="field"&gt;&lt;label&gt;PILIH BULAN / TAHUN&lt;/label&gt;&lt;input id="historyMonth" type="month" onchange="changeHistoryMonth(this.value)" style="max-width:240px;margin-bottom:12px"&gt;&lt;label&gt;TANGGAL TERISI&lt;/label&gt;&lt;div id="historyDateChips" style="display:flex;flex-wrap:wrap;gap:6px;margin:0 0 10px"&gt;&lt;span style="font-size:11px;color:#8b929d"&gt;Memeriksa tanggal...&lt;/span&gt;&lt;/div&gt;&lt;label&gt;PILIH TANGGAL&lt;/label&gt;&lt;input id="hd" type="date" onchange="render()"&gt;&lt;/div&gt;
+&lt;div class="field"&gt;&lt;label&gt;TANGGAL&lt;/label&gt;&lt;input id="hd" type="date" onchange="render()"&gt;&lt;/div&gt;
 &lt;div id="list"&gt;&lt;/div&gt;
 &lt;/section&gt;&lt;/main&gt;
 
@@ -8247,104 +8247,9 @@ function setHistoryType(type){
   render();
 }
 
-const historyDateCache={};
-const historyDatePending={};
-let historyDateLoadKey='';
-
-function dateLabelShort(iso){
-  const parts=String(iso||'').split('-');
-  if(parts.length!==3)return iso;
-  return Number(parts[2])+' '+['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'][Number(parts[1])-1];
-}
-
-async function loadAvailableHistoryDates(selectedDate,category){
-  const input=document.getElementById('hd');
-  const box=document.getElementById('historyDateChips');
-  if(!input||!box)return [];
-  const d=String(selectedDate||todayLocal());
-  const parts=d.split('-');
-  if(parts.length!==3)return [];
-  const year=Number(parts[0]),month=Number(parts[1]);
-  const key=category+'|'+parts[0]+'-'+parts[1];
-  historyDateLoadKey=key;
-  const renderChips=(dates)=>{
-    if(historyDateLoadKey!==key)return;
-    if(!dates.length){box.innerHTML='<span style="font-size:11px;color:#8b929d">Belum ada tanggal terisi pada bulan ini.</span>';return;}
-    box.innerHTML=dates.map(date=>`<button type="button" data-date="${date}" style="border:1px solid ${date===input.value?'#f28a2e':'#e0e4e9'};background:${date===input.value?'#fff1e3':'#fff'};color:${date===input.value?'#c96a1d':'#4b5563'};border-radius:9px;padding:6px 9px;font-size:11px;font-weight:750;line-height:1.2;min-width:48px" onclick="selectHistoryDate('${date}')">${dateLabelShort(date)}</button>`).join('');
-  };
-  if(historyDateCache[key]){renderChips(historyDateCache[key]);return historyDateCache[key];}
-  if(historyDatePending[key]){
-    box.innerHTML='<span style="font-size:11px;color:#8b929d">Memuat tanggal tersimpan...</span>';
-    const dates=await historyDatePending[key];
-    renderChips(dates||[]);
-    return dates||[];
-  }
-  box.innerHTML='<span style="font-size:11px;color:#8b929d">Memuat tanggal...</span>';
-  const days=new Date(year,month,0).getDate();
-  historyDatePending[key]=(async()=>{
-    const checks=[];
-    for(let day=1;day<=days;day++){
-      const date=parts[0]+'-'+parts[1]+'-'+String(day).padStart(2,'0');
-      checks.push({date});
-    }
-    const found=[];
-    // Batas paralel agar lebih cepat tanpa mengirim seluruh permintaan sekaligus.
-    const concurrency=8;
-    for(let i=0;i<checks.length;i+=concurrency){
-      const batch=checks.slice(i,i+concurrency);
-      const results=await Promise.all(batch.map(async item=>{
-        try{
-          const result=await apiGet({action:'history',category,tanggal:item.date});
-          const rows=result.data||result.items||result.rows||[];
-          return rows.length?item.date:null;
-        }catch(err){
-          console.warn('Cek tanggal riwayat gagal:',item.date,err);
-          return null;
-        }
-      }));
-      if(historyDateLoadKey!==key){}
-      found.push(...results.filter(Boolean));
-    }
-    found.sort();
-    historyDateCache[key]=found;
-    return found;
-  })();
-  try{
-    const dates=await historyDatePending[key];
-    delete historyDatePending[key];
-    renderChips(dates);
-    return dates;
-  }catch(err){
-    delete historyDatePending[key];
-    if(historyDateLoadKey===key)box.innerHTML='<span style="font-size:11px;color:#8b929d">Tanggal terisi belum dapat dimuat.</span>';
-    return [];
-  }
-}
-async function changeHistoryMonth(monthValue){
-  if(!monthValue)return;
-  const parts=monthValue.split('-');
-  if(parts.length!==2)return;
-  const monthStart=parts[0]+'-'+parts[1]+'-01';
-  const dateInput=document.getElementById('hd');
-  if(dateInput)dateInput.value=monthStart;
-  const dates=await loadAvailableHistoryDates(monthStart,historyType);
-  if(dateInput && dates && dates.length)dateInput.value=dates[0];
-  render();
-}
-
-function selectHistoryDate(date){
-  const input=document.getElementById('hd');
-  if(!input)return;
-  input.value=date;
-  render();
-}
-
 async function render(){
   const d=document.getElementById('hd').value||todayLocal();
   document.getElementById('hd').value=d;
-  const monthInput=document.getElementById('historyMonth');
-  if(monthInput)monthInput.value=d.slice(0,7);
-  loadAvailableHistoryDates(d,historyType);
   const list=document.getElementById('list');
   list.innerHTML='&lt;div class="history-loading"&gt;&lt;span class="history-loading-ring"&gt;&lt;/span&gt;&lt;div class="history-loading-title"&gt;MEMUAT RIWAYAT&lt;/div&gt;&lt;div class="history-loading-dots"&gt;&lt;i&gt;&lt;/i&gt;&lt;i&gt;&lt;/i&gt;&lt;i&gt;&lt;/i&gt;&lt;/div&gt;&lt;div class="history-loading-sub"&gt;Sedang mengambil data terbaru...&lt;/div&gt;&lt;/div&gt;';
   try{
