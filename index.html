@@ -7795,7 +7795,7 @@ body&gt;.app .sup,body&gt;.app .date{color:#7d8692!important;}
 &lt;label class="choice on"&gt;&lt;input type="radio" name="historyType" value="HALAL" checked onchange="setHistoryType('HALAL')"&gt;HALAL&lt;/label&gt;
 &lt;label class="choice"&gt;&lt;input type="radio" name="historyType" value="NON HALAL" onchange="setHistoryType('NON HALAL')"&gt;NON HALAL&lt;/label&gt;
 &lt;/div&gt;&lt;/div&gt;
-&lt;div class="field"&gt;&lt;label&gt;TANGGAL&lt;/label&gt;&lt;input id="hd" type="date" onchange="render()"&gt;&lt;/div&gt;
+&lt;div class="field"&gt;&lt;label&gt;PILIH BULAN / TAHUN&lt;/label&gt;&lt;input id="historyMonth" type="month" onchange="changeHistoryMonth(this.value)" style="max-width:240px;margin-bottom:12px"&gt;&lt;label&gt;TANGGAL TERISI&lt;/label&gt;&lt;div id="historyDateChips" style="display:flex;flex-wrap:wrap;gap:6px;margin:0 0 10px"&gt;&lt;span style="font-size:11px;color:#8b929d"&gt;Memeriksa tanggal...&lt;/span&gt;&lt;/div&gt;&lt;label&gt;PILIH TANGGAL&lt;/label&gt;&lt;input id="hd" type="date" onchange="render()"&gt;&lt;/div&gt;
 &lt;div id="list"&gt;&lt;/div&gt;
 &lt;/section&gt;&lt;/main&gt;
 
@@ -8031,14 +8031,18 @@ function incomingProductNameMatchesQuery(name,query){
   if(n.includes(q))return true;
   const queryParts=q.split(' ').filter(Boolean);
   const nameParts=n.split(' ').filter(Boolean);
-  if(queryParts.length===1)return nameParts.some(word=>word.startsWith(queryParts[0]));
-  const used=new Set();
-  return queryParts.every(part=>{
-    const index=nameParts.findIndex((word,i)=>!used.has(i)&&word.startsWith(part));
+  if(queryParts.length===1){
+    return nameParts.some(word=>word.startsWith(queryParts[0]));
+  }
+  // Multi-part query must match word prefixes in the same order.
+  // Words may be skipped, e.g. CH P L -> CHICKEN DRUMSTICK PACK LEAN.
+  let nextNameIndex=0;
+  for(const part of queryParts){
+    const index=nameParts.findIndex((word,i)=>i>=nextNameIndex && word.startsWith(part));
     if(index<0)return false;
-    used.add(index);
-    return true;
-  });
+    nextNameIndex=index+1;
+  }
+  return true;
 }
 
 function search(type,q){
@@ -8243,9 +8247,83 @@ function setHistoryType(type){
   render();
 }
 
+const historyDateCache={};
+let historyDateLoadKey='';
+
+function dateLabelShort(iso){
+  const parts=String(iso||'').split('-');
+  if(parts.length!==3)return iso;
+  return Number(parts[2])+' '+['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'][Number(parts[1])-1];
+}
+
+async function loadAvailableHistoryDates(selectedDate,category){
+  const input=document.getElementById('hd');
+  const box=document.getElementById('historyDateChips');
+  if(!input||!box)return;
+  const d=String(selectedDate||todayLocal());
+  const parts=d.split('-');
+  if(parts.length!==3)return;
+  const year=Number(parts[0]),month=Number(parts[1]);
+  const key=category+'|'+parts[0]+'-'+parts[1];
+  historyDateLoadKey=key;
+  const renderChips=(dates)=>{
+    if(historyDateLoadKey!==key)return;
+    if(!dates.length){box.innerHTML='&lt;span style="font-size:11px;color:#8b929d"&gt;Belum ada tanggal terisi pada bulan ini.&lt;/span&gt;';return;}
+    box.innerHTML=dates.map(date=>`&lt;button type="button" data-date="${date}" style="border:1px solid ${date===input.value?'#f28a2e':'#e0e4e9'};background:${date===input.value?'#fff1e3':'#fff'};color:${date===input.value?'#c96a1d':'#4b5563'};border-radius:9px;padding:6px 9px;font-size:11px;font-weight:750;line-height:1.2;min-width:48px" onclick="selectHistoryDate('${date}')"&gt;${dateLabelShort(date)}&lt;/button&gt;`).join('');
+  };
+  if(historyDateCache[key]){renderChips(historyDateCache[key]);return historyDateCache[key];}
+  box.innerHTML='&lt;span style="font-size:11px;color:#8b929d"&gt;Memeriksa tanggal...&lt;/span&gt;';
+  const days=new Date(year,month,0).getDate();
+  const found=[];
+  try{
+    // Periksa tanggal secara bertahap agar tidak membebani Apps Script sekaligus.
+    for(let start=1;start&lt;=days;start+=4){
+      if(historyDateLoadKey!==key)return;
+      const batch=[];
+      for(let day=start;day&lt;Math.min(start+4,days+1);day++){
+        const date=parts[0]+'-'+parts[1]+'-'+String(day).padStart(2,'0');
+        batch.push(apiGet({action:'history',category,tanggal:date}).then(result=>{
+          const rows=result.data||result.items||result.rows||[];
+          if(rows.length)found.push(date);
+        }).catch(err=>console.warn('Cek tanggal riwayat gagal:',date,err)));
+      }
+      await Promise.all(batch);
+    }
+    found.sort();
+    historyDateCache[key]=found;
+    renderChips(found);
+    return found;
+  }catch(err){
+    if(historyDateLoadKey===key)box.innerHTML='&lt;span style="font-size:11px;color:#8b929d"&gt;Tanggal terisi belum dapat dimuat.&lt;/span&gt;';
+    return [];
+  }
+}
+
+async function changeHistoryMonth(monthValue){
+  if(!monthValue)return;
+  const parts=monthValue.split('-');
+  if(parts.length!==2)return;
+  const monthStart=parts[0]+'-'+parts[1]+'-01';
+  const dateInput=document.getElementById('hd');
+  if(dateInput)dateInput.value=monthStart;
+  const dates=await loadAvailableHistoryDates(monthStart,historyType);
+  if(dateInput && dates && dates.length)dateInput.value=dates[0];
+  render();
+}
+
+function selectHistoryDate(date){
+  const input=document.getElementById('hd');
+  if(!input)return;
+  input.value=date;
+  render();
+}
+
 async function render(){
   const d=document.getElementById('hd').value||todayLocal();
   document.getElementById('hd').value=d;
+  const monthInput=document.getElementById('historyMonth');
+  if(monthInput)monthInput.value=d.slice(0,7);
+  loadAvailableHistoryDates(d,historyType);
   const list=document.getElementById('list');
   list.innerHTML='&lt;div class="history-loading"&gt;&lt;span class="history-loading-ring"&gt;&lt;/span&gt;&lt;div class="history-loading-title"&gt;MEMUAT RIWAYAT&lt;/div&gt;&lt;div class="history-loading-dots"&gt;&lt;i&gt;&lt;/i&gt;&lt;i&gt;&lt;/i&gt;&lt;i&gt;&lt;/i&gt;&lt;/div&gt;&lt;div class="history-loading-sub"&gt;Sedang mengambil data terbaru...&lt;/div&gt;&lt;/div&gt;';
   try{
