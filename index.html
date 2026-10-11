@@ -8200,6 +8200,7 @@ async function save(){
     if(!result.success)throw new Error(result.message||'Data gagal disimpan');
 
     editId=result.id||result.data?.id||editId||null;
+    invalidateHistoryDateCache(x.category);
 
     // Success animation
     btn.classList.remove('save-processing');
@@ -8250,6 +8251,9 @@ function setHistoryType(type){
 const historyDateCache={};
 const historyDatePending={};
 let historyDateLoadKey='';
+function invalidateHistoryDateCache(category){
+  Object.keys(historyDateCache).forEach(key=>{if(key.startsWith(category+'|'))delete historyDateCache[key];});
+}
 
 function dateLabelShort(iso){
   const parts=String(iso||'').split('-');
@@ -8264,15 +8268,18 @@ async function loadAvailableHistoryDates(selectedDate,category){
   const d=String(selectedDate||todayLocal());
   const parts=d.split('-');
   if(parts.length!==3)return [];
-  const year=Number(parts[0]),month=Number(parts[1]);
-  const key=category+'|'+parts[0]+'-'+parts[1];
+  const monthKey=parts[0]+'-'+parts[1];
+  const key=category+'|'+monthKey;
   historyDateLoadKey=key;
   const renderChips=(dates)=>{
     if(historyDateLoadKey!==key)return;
     if(!dates.length){box.innerHTML='<span style="font-size:11px;color:#8b929d">Belum ada tanggal terisi pada bulan ini.</span>';return;}
     box.innerHTML=dates.map(date=>`<button type="button" data-date="${date}" style="border:1px solid ${date===input.value?'#f28a2e':'#e0e4e9'};background:${date===input.value?'#fff1e3':'#fff'};color:${date===input.value?'#c96a1d':'#4b5563'};border-radius:9px;padding:6px 9px;font-size:11px;font-weight:750;line-height:1.2;min-width:48px" onclick="selectHistoryDate('${date}')">${dateLabelShort(date)}</button>`).join('');
   };
-  if(historyDateCache[key]){renderChips(historyDateCache[key]);return historyDateCache[key];}
+  if(Object.prototype.hasOwnProperty.call(historyDateCache,key)){
+    renderChips(historyDateCache[key]);
+    return historyDateCache[key];
+  }
   if(historyDatePending[key]){
     box.innerHTML='<span style="font-size:11px;color:#8b929d">Memuat tanggal tersimpan...</span>';
     const dates=await historyDatePending[key];
@@ -8280,34 +8287,12 @@ async function loadAvailableHistoryDates(selectedDate,category){
     return dates||[];
   }
   box.innerHTML='<span style="font-size:11px;color:#8b929d">Memuat tanggal...</span>';
-  const days=new Date(year,month,0).getDate();
   historyDatePending[key]=(async()=>{
-    const checks=[];
-    for(let day=1;day<=days;day++){
-      const date=parts[0]+'-'+parts[1]+'-'+String(day).padStart(2,'0');
-      checks.push({date});
-    }
-    const found=[];
-    // Batas paralel agar lebih cepat tanpa mengirim seluruh permintaan sekaligus.
-    const concurrency=8;
-    for(let i=0;i<checks.length;i+=concurrency){
-      const batch=checks.slice(i,i+concurrency);
-      const results=await Promise.all(batch.map(async item=>{
-        try{
-          const result=await apiGet({action:'history',category,tanggal:item.date});
-          const rows=result.data||result.items||result.rows||[];
-          return rows.length?item.date:null;
-        }catch(err){
-          console.warn('Cek tanggal riwayat gagal:',item.date,err);
-          return null;
-        }
-      }));
-      if(historyDateLoadKey!==key){}
-      found.push(...results.filter(Boolean));
-    }
-    found.sort();
-    historyDateCache[key]=found;
-    return found;
+    const result=await apiGet({action:'historyDates',category,bulan:monthKey});
+    const dates=Array.isArray(result.dates)?result.dates:[];
+    dates.sort();
+    historyDateCache[key]=dates;
+    return dates;
   })();
   try{
     const dates=await historyDatePending[key];
@@ -8316,6 +8301,7 @@ async function loadAvailableHistoryDates(selectedDate,category){
     return dates;
   }catch(err){
     delete historyDatePending[key];
+    console.warn('Gagal memuat daftar tanggal riwayat:',err);
     if(historyDateLoadKey===key)box.innerHTML='<span style="font-size:11px;color:#8b929d">Tanggal terisi belum dapat dimuat.</span>';
     return [];
   }
@@ -8447,6 +8433,7 @@ async function confirmDelete(id,btn){
       separatorRow:x.separatorRow||0
     });
 
+    invalidateHistoryDateCache(x.halal||historyType);
     closeModal();
     toast('Data berhasil dihapus');
     await render();
