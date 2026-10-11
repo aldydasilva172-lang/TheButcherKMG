@@ -7815,7 +7815,7 @@ body&gt;.app .sup,body&gt;.app .date{color:#7d8692!important;}
 &lt;svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"&gt;&lt;path d="M4 7V5a1 1 0 0 1 1-1h2M17 4h2a1 1 0 0 1 1 1v2M20 17v2a1 1 0 0 1-1 1h-2M7 20H5a1 1 0 0 1-1-1v-2"/&gt;&lt;path d="M8 8h8v8H8z"/&gt;&lt;/svg&gt;&lt;/button&gt;&lt;div class="results" id="supplierResults"&gt;&lt;/div&gt;&lt;/div&gt;&lt;/div&gt;&lt;/section&gt;&lt;section class="section"&gt;&lt;div class="st"&gt;&lt;b&gt;PEMERIKSAAN MOBIL&lt;/b&gt;&lt;small&gt;PENGIRIMAN&lt;/small&gt;&lt;/div&gt;&lt;div class="row"&gt;&lt;div class="field"&gt;&lt;label&gt;SUHU MOBIL (°C)&lt;/label&gt;&lt;input id="car" type="text" autocomplete="off" placeholder="Masukan Suhu Mobil" oninput="this.value=this.value.replace(/[^0-9,.-]/g,\'\').replace(/(?!^)-/g,\'\')"&gt;&lt;/div&gt;&lt;div class="field"&gt;&lt;label&gt;KEBERSIHAN MOBIL&lt;/label&gt;&lt;select id="clean" onchange="onCleanChange()"&gt;&lt;option value=""&gt;Pilih&lt;/option&gt;&lt;option&gt;OK&lt;/option&gt;&lt;option&gt;TIDAK&lt;/option&gt;&lt;option&gt;MOTOR&lt;/option&gt;&lt;/select&gt;&lt;/div&gt;&lt;/div&gt;&lt;/section&gt;&lt;section class="section"&gt;&lt;div class="st"&gt;&lt;b&gt;PRODUK&lt;/b&gt;&lt;small id="count"&gt;0 / 4&lt;/small&gt;&lt;/div&gt;&lt;div id="products"&gt;&lt;/div&gt;&lt;button class="add" id="add" onclick="addProduct()"&gt;＋ TAMBAH PRODUK&lt;/button&gt;&lt;/section&gt;&lt;section class="section"&gt;&lt;div class="st"&gt;&lt;b&gt;HASIL PEMERIKSAAN PO&lt;/b&gt;&lt;small&gt;PO LEVEL&lt;/small&gt;&lt;/div&gt;&lt;div class="field"&gt;&lt;label&gt;KUALITAS PRODUK&lt;/label&gt;&lt;select id="quality"&gt;
 &lt;option value="OK" selected&gt;OK&lt;/option&gt;
 &lt;option value="TIDAK"&gt;TIDAK&lt;/option&gt;
-&lt;/select&gt;&lt;/div&gt;&lt;div class="field"&gt;&lt;label&gt;TINDAKAN KOREKSI&lt;/label&gt;&lt;select id="corr" onchange="document.getElementById('manual').style.display=this.value==='MANUAL'?'block':'none'"&gt;&lt;option value=""&gt;Tidak ada / pilih&lt;/option&gt;&lt;option&gt;PAKAI STEREFOAM + ES&lt;/option&gt;&lt;option value="MANUAL"&gt;LAINNYA / KETIK SENDIRI&lt;/option&gt;&lt;/select&gt;&lt;/div&gt;&lt;div class="field" id="manual" style="display:none"&gt;&lt;label&gt;KETERANGAN TINDAKAN KOREKSI&lt;/label&gt;&lt;textarea id="corrText" placeholder="Tulis tindakan koreksi..."&gt;&lt;/textarea&gt;&lt;/div&gt;&lt;div class="row"&gt;&lt;div class="field"&gt;&lt;label&gt;KEPUTUSAN&lt;/label&gt;&lt;select id="decision"&gt;&lt;option value=""&gt;Pilih&lt;/option&gt;&lt;option&gt;DITERIMA&lt;/option&gt;&lt;option&gt;DITOLAK&lt;/option&gt;&lt;/select&gt;&lt;/div&gt;&lt;div class="field"&gt;&lt;label&gt;PIC&lt;/label&gt;&lt;select id="pic" onchange="toggleOtherPic()"&gt;&lt;option value=""&gt;Pilih PIC&lt;/option&gt;&lt;option&gt;ALDI&lt;/option&gt;&lt;option&gt;NICO&lt;/option&gt;&lt;option&gt;ARUL&lt;/option&gt;&lt;option&gt;ADUL&lt;/option&gt;&lt;option&gt;IGUN&lt;/option&gt;&lt;option&gt;ARGA&lt;/option&gt;&lt;option value="OTHER"&gt;ISI NAMA LAIN&lt;/option&gt;&lt;/select&gt;&lt;div id="picOtherWrap" style="display:none"&gt;
+&lt;/select&gt;&lt;/div&gt;&lt;div class="field"&gt;&lt;label&gt;TINDAKAN KOREKSI&lt;/label&gt;&lt;select id="corr" onchange="document.getElementById('manual').style.display=this.value==='MANUAL'?'block':'none'"&gt;&lt;option value=""&gt;Tidak ada / pilih&lt;/option&gt;&lt;option&gt;PAKAI STEREFOAM + ES&lt;/option&gt;&lt;option value="MANUAL"&gt;LAINNYA / KETIK SENDIRI&lt;/option&gt;&lt;/select&gt;&lt;/div&gt;&lt;div class="field" id="manual" style="display:none"&gt;&lt;label&gt;KETERANGAN TINDAKAN KOREKSI&lt;/label&gt;&lt;textarea id="corrText" placeholder="Tulis tindakan koreksi..."&gt;&lt;/textarea&gt;&lt;/div&gt;&lt;div class="row"&gt;&lt;div class="field"&gt;&lt;label&gt;KEPUTUSAN&lt;/label&gt;&lt;select id="decision"&gt;&lt;option value=""&gt;Pilih&lt;/option&gt;&lt;option&gt;DITERIMA&lt;/option&gt;&lt;option&gt;DITOLAK&lt;/option&gt;&lt;/select&gt;&lt;/div&gt;&lt;div class="field"&gt;&lt;label&gt;PIC&lt;/label&gt;&lt;select id="pic" onchange="toggleOtherPic()"&gt;&lt;option value=""&gt;Pilih PIC&lt;/option&gt;&lt;option&gt;ALDI&lt;/option&gt;&lt;option&gt;NICO&lt;/option&gt;&lt;option&gt;ARUL&lt;/option&gt;&lt;option&gt;ADUL&lt;/option&gt;&lt;option&gt;INDRA&lt;/option&gt;&lt;option&gt;ARGA&lt;/option&gt;&lt;option value="OTHER"&gt;ISI NAMA LAIN&lt;/option&gt;&lt;/select&gt;&lt;div id="picOtherWrap" style="display:none"&gt;
 &lt;input id="picOther" type="text" inputmode="text" placeholder="Ketik nama PIC..." autocomplete="off"&gt;
 &lt;/div&gt;&lt;/div&gt;&lt;/div&gt;&lt;/section&gt;&lt;button class="primary" onclick="save()"&gt;SIMPAN INCOMING&lt;/button&gt;&lt;/main&gt;&lt;main id="history" class="page"&gt;&lt;div class="hero"&gt;&lt;div class="ey"&gt;INCOMING HISTORY&lt;/div&gt;&lt;h2&gt;Riwayat&lt;/h2&gt;&lt;p&gt;Riwayat dikelompokkan berdasarkan tanggal, lembar / halaman setiap PO&lt;/p&gt;&lt;button class="back" onclick="page('home')"&gt;‹ Kembali&lt;/button&gt;&lt;/div&gt;&lt;section class="section"&gt;
 &lt;div class="field"&gt;&lt;label&gt;KATEGORI&lt;/label&gt;
@@ -7823,7 +7823,7 @@ body&gt;.app .sup,body&gt;.app .date{color:#7d8692!important;}
 &lt;label class="choice on"&gt;&lt;input type="radio" name="historyType" value="HALAL" checked onchange="setHistoryType('HALAL')"&gt;HALAL&lt;/label&gt;
 &lt;label class="choice"&gt;&lt;input type="radio" name="historyType" value="NON HALAL" onchange="setHistoryType('NON HALAL')"&gt;NON HALAL&lt;/label&gt;
 &lt;/div&gt;&lt;/div&gt;
-&lt;div class="field"&gt;&lt;label&gt;PILIH BULAN / TAHUN&lt;/label&gt;&lt;input id="historyMonth" type="month" onchange="changeHistoryMonth(this.value)" style="max-width:240px;margin-bottom:12px"&gt;&lt;label&gt;TANGGAL TERISI&lt;/label&gt;&lt;div id="historyDateChips" style="display:flex;flex-wrap:wrap;gap:6px;margin:0 0 10px"&gt;&lt;span style="font-size:11px;color:#8b929d"&gt;Memeriksa tanggal...&lt;/span&gt;&lt;/div&gt;&lt;label&gt;PILIH TANGGAL&lt;/label&gt;&lt;input id="hd" type="date" onchange="render()"&gt;&lt;/div&gt;
+&lt;div class="field"&gt;&lt;label&gt;PILIH BULAN / TAHUN&lt;/label&gt;&lt;input id="historyMonth" type="month" onchange="changeHistoryMonth(this.value)" style="width:155px;max-width:155px;padding:7px 8px;font-size:12px;border-radius:8px;margin-bottom:8px"&gt;&lt;label&gt;TANGGAL TERISI&lt;/label&gt;&lt;div id="historyDateChips" style="display:flex;flex-wrap:wrap;gap:4px;margin:0 0 7px"&gt;&lt;span style="font-size:11px;color:#8b929d"&gt;Memeriksa tanggal...&lt;/span&gt;&lt;/div&gt;&lt;label&gt;PILIH TANGGAL&lt;/label&gt;&lt;input id="hd" type="date" onchange="render()" style="width:165px;max-width:165px;padding:7px 8px;font-size:12px;border-radius:8px"&gt;&lt;/div&gt;
 &lt;div id="list"&gt;&lt;/div&gt;
 &lt;/section&gt;&lt;/main&gt;
 
@@ -8301,20 +8301,20 @@ async function loadAvailableHistoryDates(selectedDate,category){
   historyDateLoadKey=key;
   const renderChips=(dates)=>{
     if(historyDateLoadKey!==key)return;
-    if(!dates.length){box.innerHTML='<span style="font-size:11px;color:#8b929d">Belum ada tanggal terisi pada bulan ini.</span>';return;}
-    box.innerHTML=dates.map(date=>`<button type="button" data-date="${date}" style="border:1px solid ${date===input.value?'#f28a2e':'#e0e4e9'};background:${date===input.value?'#fff1e3':'#fff'};color:${date===input.value?'#c96a1d':'#4b5563'};border-radius:9px;padding:6px 9px;font-size:11px;font-weight:750;line-height:1.2;min-width:48px" onclick="selectHistoryDate('${date}')">${dateLabelShort(date)}</button>`).join('');
+    if(!dates.length){box.innerHTML='<span style="font-size:9px;color:#8b929d">Belum ada tanggal terisi pada bulan ini.</span>';return;}
+    box.innerHTML=dates.map(date=>`<button type="button" data-date="${date}" style="border:1px solid ${date===input.value?'#f28a2e':'#e0e4e9'};background:${date===input.value?'#fff1e3':'#fff'};color:${date===input.value?'#c96a1d':'#4b5563'};border-radius:7px;padding:4px 6px;font-size:9px;font-weight:750;line-height:1.1;min-width:42px" onclick="selectHistoryDate('${date}')">${dateLabelShort(date)}</button>`).join('');
   };
   if(Object.prototype.hasOwnProperty.call(historyDateCache,key)){
     renderChips(historyDateCache[key]);
     return historyDateCache[key];
   }
   if(historyDatePending[key]){
-    box.innerHTML='<span style="font-size:11px;color:#8b929d">Memuat tanggal tersimpan...</span>';
+    box.innerHTML='<span style="font-size:9px;color:#8b929d">Memuat tanggal tersimpan...</span>';
     const dates=await historyDatePending[key];
     renderChips(dates||[]);
     return dates||[];
   }
-  box.innerHTML='<span style="font-size:11px;color:#8b929d">Memuat tanggal...</span>';
+  box.innerHTML='<span style="font-size:9px;color:#8b929d">Memuat tanggal...</span>';
   historyDatePending[key]=(async()=>{
     const result=await apiGet({action:'historyDates',category,bulan:monthKey});
     const dates=Array.isArray(result.dates)?result.dates:[];
@@ -8525,7 +8525,7 @@ async function edit(id){
   document.getElementById('decision').value=x.decision;
   const picSelect=document.getElementById('pic');
   const picOther=document.getElementById('picOther');
-  const picKnown=['ALDI','NICO','ARUL','ADUL','IGUN','ARGA'];
+  const picKnown=['ALDI','NICO','ARUL','ADUL','INDRA','ARGA'];
   if(picKnown.includes(String(x.pic||'').toUpperCase())){
     picSelect.value=String(x.pic).toUpperCase();
     picOther.value='';
