@@ -7737,6 +7737,34 @@ body&gt;.app .po{color:#303640!important;}
 body&gt;.app .sup,body&gt;.app .date{color:#7d8692!important;}
 @media(max-width:640px){body&gt;.app{padding:12px 10px 28px!important;}body&gt;.app .hero h2{font-size:24px!important;}body&gt;.app .menu{min-height:112px!important;padding:15px!important;}body&gt;.app .menu b{font-size:14px!important;}body&gt;.app .menu span{font-size:10px!important;}}
 &lt;/style&gt;
+&lt;style id="compact-incoming-history"&gt;
+/* Compactar apenas os cards da tela de riwayat Incoming */
+.category-history{margin-bottom:10px!important}
+.category-title{margin-top:4px!important;padding:7px 9px!important;border-radius:9px!important}
+.category-title b{font-size:10px!important;letter-spacing:.05em!important}
+.category-title span{font-size:8px!important}
+.sheet-group .sheet-title{padding:6px 8px!important;font-size:9px!important}
+.hist{padding:9px 10px!important;margin-bottom:7px!important;border-radius:10px!important}
+.ht{gap:7px!important;align-items:flex-start!important}
+.date{font-size:8px!important;line-height:1.2!important}
+.po{font-size:12px!important;line-height:1.2!important;margin-top:2px!important}
+.sup{font-size:9px!important;line-height:1.25!important;margin-top:2px!important}
+.hist .badge{font-size:7px!important;padding:4px 6px!important;line-height:1.1!important;white-space:nowrap!important}
+.chips{gap:4px!important;margin-top:6px!important}
+.chip{font-size:7px!important;padding:3px 5px!important;line-height:1.15!important;border-radius:6px!important}
+.hist .actions{gap:5px!important;margin-top:6px!important}
+.hist .actions button{min-height:30px!important;padding:5px 9px!important;font-size:8px!important;border-radius:7px!important}
+@media(max-width:430px){
+ .category-history{margin-bottom:8px!important}
+ .category-title{padding:6px 8px!important}
+ .hist{padding:8px!important;margin-bottom:6px!important}
+ .po{font-size:11px!important}
+ .sup{font-size:8px!important}
+ .chips{gap:3px!important;margin-top:5px!important}
+ .chip{font-size:7px!important;padding:3px 4px!important}
+ .hist .actions button{min-height:28px!important;padding:4px 8px!important}
+}
+&lt;/style&gt;
 &lt;/head&gt;&lt;body&gt;&lt;script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"&gt;&lt;/script&gt;
 &lt;div class="app"&gt;&lt;header class="top"&gt;&lt;div class="brand"&gt;&lt;div class="logo"&gt;📝&lt;/div&gt;&lt;div&gt;&lt;b&gt;INCOMING&lt;/b&gt;&lt;small&gt;RANCH MARKET KEMANG&lt;/small&gt;&lt;/div&gt;&lt;/div&gt;&lt;button class="icon" onclick="page('home')"&gt;⌂&lt;/button&gt;&lt;/header&gt;&lt;main id="home" class="page on"&gt;&lt;div class="hero"&gt;&lt;div class="ey"&gt;INCOMING CONTROL&lt;/div&gt;&lt;h2&gt;FORM INCOMING&lt;/h2&gt;&lt;p&gt;BSD RM KEMANG&lt;/p&gt;&lt;/div&gt;&lt;div class="grid"&gt;&lt;button class="menu" onclick="newForm()"&gt;&lt;div class="ico"&gt;＋&lt;/div&gt;&lt;b&gt;Incoming Baru&lt;/b&gt;&lt;span&gt;Input penerimaan&lt;/span&gt;&lt;/button&gt;&lt;button class="menu" onclick="page('history');render()"&gt;&lt;div class="ico"&gt;≡&lt;/div&gt;&lt;b&gt;Riwayat&lt;/b&gt;&lt;span&gt;Per lembar / PO&lt;/span&gt;&lt;/button&gt;&lt;button class="menu" onclick="openSpreadsheetMenu()"&gt;&lt;div class="ico"&gt;▥&lt;/div&gt;&lt;b&gt;Spreadsheet&lt;/b&gt;&lt;span&gt;Buka file bulanan&lt;/span&gt;&lt;/button&gt;&lt;/div&gt;&lt;/main&gt;
 
@@ -7787,7 +7815,7 @@ body&gt;.app .sup,body&gt;.app .date{color:#7d8692!important;}
 &lt;svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"&gt;&lt;path d="M4 7V5a1 1 0 0 1 1-1h2M17 4h2a1 1 0 0 1 1 1v2M20 17v2a1 1 0 0 1-1 1h-2M7 20H5a1 1 0 0 1-1-1v-2"/&gt;&lt;path d="M8 8h8v8H8z"/&gt;&lt;/svg&gt;&lt;/button&gt;&lt;div class="results" id="supplierResults"&gt;&lt;/div&gt;&lt;/div&gt;&lt;/div&gt;&lt;/section&gt;&lt;section class="section"&gt;&lt;div class="st"&gt;&lt;b&gt;PEMERIKSAAN MOBIL&lt;/b&gt;&lt;small&gt;PENGIRIMAN&lt;/small&gt;&lt;/div&gt;&lt;div class="row"&gt;&lt;div class="field"&gt;&lt;label&gt;SUHU MOBIL (°C)&lt;/label&gt;&lt;input id="car" type="text" autocomplete="off" placeholder="Masukan Suhu Mobil" oninput="this.value=this.value.replace(/[^0-9,.-]/g,\'\').replace(/(?!^)-/g,\'\')"&gt;&lt;/div&gt;&lt;div class="field"&gt;&lt;label&gt;KEBERSIHAN MOBIL&lt;/label&gt;&lt;select id="clean" onchange="onCleanChange()"&gt;&lt;option value=""&gt;Pilih&lt;/option&gt;&lt;option&gt;OK&lt;/option&gt;&lt;option&gt;TIDAK&lt;/option&gt;&lt;option&gt;MOTOR&lt;/option&gt;&lt;/select&gt;&lt;/div&gt;&lt;/div&gt;&lt;/section&gt;&lt;section class="section"&gt;&lt;div class="st"&gt;&lt;b&gt;PRODUK&lt;/b&gt;&lt;small id="count"&gt;0 / 4&lt;/small&gt;&lt;/div&gt;&lt;div id="products"&gt;&lt;/div&gt;&lt;button class="add" id="add" onclick="addProduct()"&gt;＋ TAMBAH PRODUK&lt;/button&gt;&lt;/section&gt;&lt;section class="section"&gt;&lt;div class="st"&gt;&lt;b&gt;HASIL PEMERIKSAAN PO&lt;/b&gt;&lt;small&gt;PO LEVEL&lt;/small&gt;&lt;/div&gt;&lt;div class="field"&gt;&lt;label&gt;KUALITAS PRODUK&lt;/label&gt;&lt;select id="quality"&gt;
 &lt;option value="OK" selected&gt;OK&lt;/option&gt;
 &lt;option value="TIDAK"&gt;TIDAK&lt;/option&gt;
-&lt;/select&gt;&lt;/div&gt;&lt;div class="field"&gt;&lt;label&gt;TINDAKAN KOREKSI&lt;/label&gt;&lt;select id="corr" onchange="document.getElementById('manual').style.display=this.value==='MANUAL'?'block':'none'"&gt;&lt;option value=""&gt;Tidak ada / pilih&lt;/option&gt;&lt;option&gt;PAKAI STEREFOAM + ES&lt;/option&gt;&lt;option value="MANUAL"&gt;LAINNYA / KETIK SENDIRI&lt;/option&gt;&lt;/select&gt;&lt;/div&gt;&lt;div class="field" id="manual" style="display:none"&gt;&lt;label&gt;KETERANGAN TINDAKAN KOREKSI&lt;/label&gt;&lt;textarea id="corrText" placeholder="Tulis tindakan koreksi..."&gt;&lt;/textarea&gt;&lt;/div&gt;&lt;div class="row"&gt;&lt;div class="field"&gt;&lt;label&gt;KEPUTUSAN&lt;/label&gt;&lt;select id="decision"&gt;&lt;option value=""&gt;Pilih&lt;/option&gt;&lt;option&gt;DITERIMA&lt;/option&gt;&lt;option&gt;DITOLAK&lt;/option&gt;&lt;/select&gt;&lt;/div&gt;&lt;div class="field"&gt;&lt;label&gt;PIC&lt;/label&gt;&lt;select id="pic" onchange="toggleOtherPic()"&gt;&lt;option value=""&gt;Pilih PIC&lt;/option&gt;&lt;option&gt;ALDI&lt;/option&gt;&lt;option&gt;NICO&lt;/option&gt;&lt;option&gt;ARUL&lt;/option&gt;&lt;option&gt;ADUL&lt;/option&gt;&lt;option&gt;INDRA&lt;/option&gt;&lt;option&gt;ARGA&lt;/option&gt;&lt;option value="OTHER"&gt;ISI NAMA LAIN&lt;/option&gt;&lt;/select&gt;&lt;div id="picOtherWrap" style="display:none"&gt;
+&lt;/select&gt;&lt;/div&gt;&lt;div class="field"&gt;&lt;label&gt;TINDAKAN KOREKSI&lt;/label&gt;&lt;select id="corr" onchange="document.getElementById('manual').style.display=this.value==='MANUAL'?'block':'none'"&gt;&lt;option value=""&gt;Tidak ada / pilih&lt;/option&gt;&lt;option&gt;PAKAI STEREFOAM + ES&lt;/option&gt;&lt;option value="MANUAL"&gt;LAINNYA / KETIK SENDIRI&lt;/option&gt;&lt;/select&gt;&lt;/div&gt;&lt;div class="field" id="manual" style="display:none"&gt;&lt;label&gt;KETERANGAN TINDAKAN KOREKSI&lt;/label&gt;&lt;textarea id="corrText" placeholder="Tulis tindakan koreksi..."&gt;&lt;/textarea&gt;&lt;/div&gt;&lt;div class="row"&gt;&lt;div class="field"&gt;&lt;label&gt;KEPUTUSAN&lt;/label&gt;&lt;select id="decision"&gt;&lt;option value=""&gt;Pilih&lt;/option&gt;&lt;option&gt;DITERIMA&lt;/option&gt;&lt;option&gt;DITOLAK&lt;/option&gt;&lt;/select&gt;&lt;/div&gt;&lt;div class="field"&gt;&lt;label&gt;PIC&lt;/label&gt;&lt;select id="pic" onchange="toggleOtherPic()"&gt;&lt;option value=""&gt;Pilih PIC&lt;/option&gt;&lt;option&gt;ALDI&lt;/option&gt;&lt;option&gt;NICO&lt;/option&gt;&lt;option&gt;ARUL&lt;/option&gt;&lt;option&gt;ADUL&lt;/option&gt;&lt;option&gt;IGUN&lt;/option&gt;&lt;option&gt;ARGA&lt;/option&gt;&lt;option value="OTHER"&gt;ISI NAMA LAIN&lt;/option&gt;&lt;/select&gt;&lt;div id="picOtherWrap" style="display:none"&gt;
 &lt;input id="picOther" type="text" inputmode="text" placeholder="Ketik nama PIC..." autocomplete="off"&gt;
 &lt;/div&gt;&lt;/div&gt;&lt;/div&gt;&lt;/section&gt;&lt;button class="primary" onclick="save()"&gt;SIMPAN INCOMING&lt;/button&gt;&lt;/main&gt;&lt;main id="history" class="page"&gt;&lt;div class="hero"&gt;&lt;div class="ey"&gt;INCOMING HISTORY&lt;/div&gt;&lt;h2&gt;Riwayat&lt;/h2&gt;&lt;p&gt;Riwayat dikelompokkan berdasarkan tanggal, lembar / halaman setiap PO&lt;/p&gt;&lt;button class="back" onclick="page('home')"&gt;‹ Kembali&lt;/button&gt;&lt;/div&gt;&lt;section class="section"&gt;
 &lt;div class="field"&gt;&lt;label&gt;KATEGORI&lt;/label&gt;
@@ -8497,7 +8525,7 @@ async function edit(id){
   document.getElementById('decision').value=x.decision;
   const picSelect=document.getElementById('pic');
   const picOther=document.getElementById('picOther');
-  const picKnown=['ALDI','NICO','ARUL','ADUL','INDRA','ARGA'];
+  const picKnown=['ALDI','NICO','ARUL','ADUL','IGUN','ARGA'];
   if(picKnown.includes(String(x.pic||'').toUpperCase())){
     picSelect.value=String(x.pic).toUpperCase();
     picOther.value='';
