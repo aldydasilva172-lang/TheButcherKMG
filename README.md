@@ -1,1 +1,0 @@
-# Stockloss-BSD
