@@ -18355,7 +18355,7 @@ async function edit(id){
   document.getElementById('decision').value=x.decision;
   const picSelect=document.getElementById('pic');
   const picOther=document.getElementById('picOther');
-  const picKnown=['ALDI','NICO','IGUN','ARUL,'ADUL','ARGA'];
+  const picKnown=['ALDI','NICO','IGUN','ARUL','ADUL','ARGA'];
   if(picKnown.includes(String(x.pic||'').toUpperCase())){
     picSelect.value=String(x.pic).toUpperCase();
     picOther.value='';
