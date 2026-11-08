@@ -2648,15 +2648,17 @@ button
   box-shadow:5px 0 24px rgba(15,23,42,.06);
   z-index:10
 }
-#dashboard .sidebar-brand
-{
+#dashboard .sidebar-brand {
   display:flex;
+  flex-direction:column;
   align-items:center;
-  gap:11px;
-  padding:0 7px
+  text-align:center;
+  gap:8px;
+  padding:0 7px;
 }
-#dashboard .sidebar-logo,#dashboard .top-brand-icon
-{
+
+#dashboard .sidebar-logo,
+#dashboard .top-brand-icon {
   width:40px;
   height:40px;
   display:flex;
@@ -2669,25 +2671,30 @@ button
   font-family:Orbitron,sans-serif;
   font-size:11px;
   font-weight:900;
-  box-shadow:0 7px 18px rgba(255,122,0,.2)
+  box-shadow:0 7px 18px rgba(255,122,0,.2);
 }
-#dashboard .sidebar-brand-text strong
-{
+
+#dashboard .sidebar-brand-text {
+  text-align:center;
+}
+
+#dashboard .sidebar-brand-text strong {
   display:block;
   font-family:Orbitron,sans-serif;
   font-size:15px;
   letter-spacing:.7px;
-  color:#171a1f
+  color:#171a1f;
 }
-#dashboard .sidebar-brand-text span
-{
+
+#dashboard .sidebar-brand-text span {
   display:block;
   margin-top:3px;
   font-size:9px;
   font-weight:600;
-  letter-spacing:.8px;
-  color:#8a919c
+  letter-spacing:.7px;
+  color:#8a919c;
 }
+
 #dashboard .sidebar-divider
 {
   height:1px;
