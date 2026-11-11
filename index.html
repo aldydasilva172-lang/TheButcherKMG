@@ -11203,19 +11203,37 @@ async function openInventoryScanner(){
       setTimeout(()=>closeInventoryScanner(),180);
     },()=>{});
     setTimeout(async()=>{
-      try{
-        const video=document.querySelector("#inventoryScannerReader video");
-        const track=video?.srcObject?.getVideoTracks?.()[0];
-        const caps=track?.getCapabilities?.()||{};
-        const advanced={};
-        if(Array.isArray(caps.focusMode)&&caps.focusMode.includes("continuous"))advanced.focusMode="continuous";
-        if(caps.zoom){
-          const min=Number(caps.zoom.min||1),max=Number(caps.zoom.max||min);
-          if(max>min)advanced.zoom=Math.min(max,min+(max-min)*.3);
-        }
-        if(Object.keys(advanced).length)await track.applyConstraints({advanced:[advanced]});
-      }catch(e){}
-    },300);
+  try{
+    const video=document.querySelector("#inventoryScannerReader video");
+    if(!video?.srcObject)return;
+
+    const track=video.srcObject.getVideoTracks()[0];
+    if(!track)return;
+
+    const caps=track.getCapabilities?.()||{};
+    const advanced={};
+
+    // Autofocus otomatis
+    if(Array.isArray(caps.focusMode)&&caps.focusMode.includes("continuous")){
+      advanced.focusMode="continuous";
+    }
+
+    // Zoom 15% (1.15x)
+    if(caps.zoom){
+      const min=Number(caps.zoom.min||1);
+      const max=Number(caps.zoom.max||min);
+
+      advanced.zoom=Math.max(min,Math.min(1.15,max));
+    }
+
+    if(Object.keys(advanced).length){
+      await track.applyConstraints({advanced:[advanced]});
+    }
+
+  }catch(e){
+    console.log("Camera adjustment:",e);
+  }
+},800);
   }catch(err){
     console.error("Inventory scanner error:",err);
     status.textContent="Kamera tidak dapat dibuka. Izinkan akses kamera atau gunakan input manual.";
