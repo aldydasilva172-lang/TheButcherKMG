@@ -11223,7 +11223,7 @@ async function openInventoryScanner(){
       const min=Number(caps.zoom.min||1);
       const max=Number(caps.zoom.max||min);
 
-      advanced.zoom=Math.max(min,Math.min(1.15,max));
+      advanced.zoom=Math.max(min,Math.min(1.30,max));
     }
 
     if(Object.keys(advanced).length){
@@ -18514,7 +18514,7 @@ async function tuneScannerCamera(){
  if(caps.zoom){
   const min=Number(caps.zoom.min||1);
   const max=Number(caps.zoom.max||min);
-  const target=Math.min(max,Math.max(min,1.18));
+  const target=Math.min(max,Math.max(min,1.30));
   if(target>min)advanced.zoom=target;
 }
     if(Object.keys(advanced).length){try{await track.applyConstraints({advanced:[advanced]});}catch(e){}}
