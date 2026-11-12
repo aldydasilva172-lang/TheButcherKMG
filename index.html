@@ -6593,7 +6593,7 @@ body
     right:6px
   }
 }</style>
-<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script src="https://unpkg.com/@zxing/library@0.21.3/umd/index.min.js"></script>
 </head>
 <body>
 <section id="loginPage">
@@ -11163,91 +11163,90 @@ console.log(
 let inventoryScannerInstance=null;
 let inventoryScannerBusy=false;
 
-async function openInventoryScanner(){
-  const modal=document.getElementById("inventoryScannerModal");
-  const status=document.getElementById("inventoryScannerStatus");
-  if(!modal||!status)return;
-  modal.classList.add("on");
-  modal.setAttribute("aria-hidden","false");
-  status.textContent="Arahkan barcode ke kamera";
-  if(inventoryScannerInstance){
-    await closeInventoryScanner(false);
-    modal.classList.add("on");
-    modal.setAttribute("aria-hidden","false");
-  }
-  if(typeof Html5Qrcode==="undefined"){
-    status.textContent="Scanner belum tersedia. Silakan masukkan barcode secara manual.";
-    return;
-  }
-  inventoryScannerBusy=false;
-  inventoryScannerInstance=new Html5Qrcode("inventoryScannerReader");
-  try{
-    const formats=typeof Html5QrcodeSupportedFormats!=="undefined"?[
-      Html5QrcodeSupportedFormats.CODE_128,Html5QrcodeSupportedFormats.CODE_39,
-      Html5QrcodeSupportedFormats.CODE_93,Html5QrcodeSupportedFormats.EAN_13,
-      Html5QrcodeSupportedFormats.EAN_8,Html5QrcodeSupportedFormats.UPC_A,
-      Html5QrcodeSupportedFormats.UPC_E,Html5QrcodeSupportedFormats.ITF,
-      Html5QrcodeSupportedFormats.QR_CODE
-    ]:undefined;
-    const config={
-  fps:20,
-  aspectRatio:2,
-  disableFlip:true,
-  formatsToSupport:formats,
-  experimentalFeatures:{
-    useBarCodeDetectorIfSupported:true
-  }
-};
-    if(formats)config.formatsToSupport=formats;
-    await inventoryScannerInstance.start({facingMode:"environment"},config,async decodedText=>{
-      if(inventoryScannerBusy)return;
-      inventoryScannerBusy=true;
-      const input=document.getElementById("barcode");
-      if(input){
-        input.value=String(decodedText||"").trim();
-        input.dispatchEvent(new Event("input",{bubbles:true}));
-        input.focus();
-      }
-      status.textContent="Barcode berhasil dibaca";
-      setTimeout(()=>closeInventoryScanner(),180);
-    },()=>{});
-    setTimeout(async()=>{
-  try{
-    const video=document.querySelector("#inventoryScannerReader video");
-    if(!video?.srcObject)return;
+function inventoryZXingFormats(){
+  const B=window.ZXing?.BarcodeFormat;
+  return B ? [
+    B.CODE_128,B.CODE_39,B.CODE_93,B.EAN_13,B.EAN_8,
+    B.UPC_A,B.UPC_E,B.ITF,B.QR_CODE
+  ] : [];
+}
 
-    const track=video.srcObject.getVideoTracks()[0];
+async function applyZXingCameraTune(video,zoom=2){
+  try{
+    const track=video?.srcObject?.getVideoTracks?.()[0];
     if(!track)return;
-
     const caps=track.getCapabilities?.()||{};
     const advanced={};
-
-    // Autofocus otomatis
     if(Array.isArray(caps.focusMode)&&caps.focusMode.includes("continuous")){
       advanced.focusMode="continuous";
     }
-
-    // Zoom 15% (1.15x)
     if(caps.zoom){
       const min=Number(caps.zoom.min||1);
       const max=Number(caps.zoom.max||min);
-
-      advanced.zoom=Math.max(min,Math.min(2.0,max));
+      advanced.zoom=Math.min(max,Math.max(min,zoom));
     }
+    if(Object.keys(advanced).length)await track.applyConstraints({advanced:[advanced]});
+  }catch(e){console.log("Camera adjustment:",e);}
+}
 
-    if(Object.keys(advanced).length){
-      await track.applyConstraints({advanced:[advanced]});
-    }
+async function openInventoryScanner(){
+  const modal=document.getElementById("inventoryScannerModal");
+  const status=document.getElementById("inventoryScannerStatus");
+  const reader=document.getElementById("inventoryScannerReader");
+  if(!modal||!status||!reader)return;
 
-  }catch(e){
-    console.log("Camera adjustment:",e);
+  modal.classList.add("on");
+  modal.setAttribute("aria-hidden","false");
+  status.textContent="Arahkan barcode ke kamera";
+
+  if(inventoryScannerInstance)await closeInventoryScanner(false);
+
+  if(!window.ZXing?.BrowserMultiFormatReader){
+    status.textContent="Library ZXing belum tersedia. Silakan masukkan barcode manual.";
+    return;
   }
-},800);
+
+  inventoryScannerBusy=false;
+  reader.innerHTML="";
+  const video=document.createElement("video");
+  video.setAttribute("playsinline","true");
+  video.setAttribute("autoplay","true");
+  video.muted=true;
+  video.style.cssText="width:100%;height:100%;object-fit:cover;display:block";
+  reader.appendChild(video);
+
+  try{
+    const hints=new Map();
+    const formats=inventoryZXingFormats();
+    if(formats.length)hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS,formats);
+    hints.set(ZXing.DecodeHintType.TRY_HARDER,true);
+
+    const scanner=new ZXing.BrowserMultiFormatReader(hints,250);
+    inventoryScannerInstance=scanner;
+    await scanner.decodeFromConstraints(
+      {video:{facingMode:{ideal:"environment"}}},
+      video,
+      (result,error)=>{
+        if(!result||inventoryScannerBusy)return;
+        inventoryScannerBusy=true;
+        const decodedText=String(result.getText?.()||"").trim();
+        const input=document.getElementById("barcode");
+        if(input&&decodedText){
+          input.value=decodedText;
+          input.dispatchEvent(new Event("input",{bubbles:true}));
+          input.focus();
+        }
+        status.textContent="Barcode berhasil dibaca";
+        setTimeout(()=>closeInventoryScanner(),180);
+      }
+    );
+    setTimeout(()=>applyZXingCameraTune(video,2),700);
   }catch(err){
-    console.error("Inventory scanner error:",err);
+    console.error("Inventory ZXing scanner error:",err);
     status.textContent="Kamera tidak dapat dibuka. Izinkan akses kamera atau gunakan input manual.";
-    try{await inventoryScannerInstance.clear();}catch(e){}
-    inventoryScannerInstance=null;
+    await closeInventoryScanner(false);
+    modal.classList.add("on");
+    modal.setAttribute("aria-hidden","false");
   }
 }
 
@@ -11259,8 +11258,7 @@ async function closeInventoryScanner(hide=true){
     modal.setAttribute("aria-hidden","true");
   }
   if(inventoryScannerInstance){
-    try{if(inventoryScannerInstance.isScanning)await inventoryScannerInstance.stop();}catch(e){}
-    try{await inventoryScannerInstance.clear();}catch(e){}
+    try{inventoryScannerInstance.reset();}catch(e){}
     inventoryScannerInstance=null;
   }
   inventoryScannerBusy=false;
@@ -17634,7 +17632,7 @@ body&gt;.app .sup,body&gt;.app .date{color:#7d8692!important;}
  .hist .actions button{min-height:28px!important;padding:4px 8px!important}
 }
 &lt;/style&gt;
-&lt;/head&gt;&lt;body&gt;&lt;script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"&gt;&lt;/script&gt;
+&lt;/head&gt;&lt;body&gt;&lt;script src="https://unpkg.com/@zxing/library@0.21.3/umd/index.min.js"&gt;&lt;/script&gt;
 &lt;div class="app"&gt;&lt;header class="top"&gt;&lt;div class="brand"&gt;&lt;div class="logo"&gt;📝&lt;/div&gt;&lt;div&gt;&lt;b&gt;INCOMING&lt;/b&gt;&lt;small&gt;RANCH MARKET KEMANG&lt;/small&gt;&lt;/div&gt;&lt;/div&gt;&lt;button class="icon" onclick="page('home')"&gt;⌂&lt;/button&gt;&lt;/header&gt;&lt;main id="home" class="page on"&gt;&lt;div class="hero"&gt;&lt;div class="ey"&gt;INCOMING CONTROL&lt;/div&gt;&lt;h2&gt;FORM INCOMING&lt;/h2&gt;&lt;p&gt;BSD RM KEMANG&lt;/p&gt;&lt;/div&gt;&lt;div class="grid"&gt;&lt;button class="menu" onclick="newForm()"&gt;&lt;div class="ico"&gt;＋&lt;/div&gt;&lt;b&gt;Incoming Baru&lt;/b&gt;&lt;span&gt;Input penerimaan&lt;/span&gt;&lt;/button&gt;&lt;button class="menu" onclick="page('history');render()"&gt;&lt;div class="ico"&gt;≡&lt;/div&gt;&lt;b&gt;Riwayat&lt;/b&gt;&lt;span&gt;Per lembar / PO&lt;/span&gt;&lt;/button&gt;&lt;button class="menu" onclick="openSpreadsheetMenu()"&gt;&lt;div class="ico"&gt;▥&lt;/div&gt;&lt;b&gt;Spreadsheet&lt;/b&gt;&lt;span&gt;Buka file bulanan&lt;/span&gt;&lt;/button&gt;&lt;/div&gt;&lt;/main&gt;
 
 &lt;main id="typeGate" class="page"&gt;
@@ -17928,7 +17926,7 @@ function ui(){
 }
 
 function incomingProductNameMatchesQuery(name,query){
-  const normalize=text=>String(text||'').toLowerCase()
+  const normalize=text=&gt;String(text||'').toLowerCase()
     .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
     .replace(/[^a-z0-9]+/g,' ').trim().replace(/\s+/g,' ');
   const n=normalize(name),q=normalize(query);
@@ -17937,14 +17935,14 @@ function incomingProductNameMatchesQuery(name,query){
   const queryParts=q.split(' ').filter(Boolean);
   const nameParts=n.split(' ').filter(Boolean);
   if(queryParts.length===1){
-    return nameParts.some(word=>word.startsWith(queryParts[0]));
+    return nameParts.some(word=&gt;word.startsWith(queryParts[0]));
   }
   // Multi-part query must match word prefixes in the same order.
-  // Words may be skipped, e.g. CH P L -> CHICKEN DRUMSTICK PACK LEAN.
+  // Words may be skipped, e.g. CH P L -&gt; CHICKEN DRUMSTICK PACK LEAN.
   let nextNameIndex=0;
   for(const part of queryParts){
-    const index=nameParts.findIndex((word,i)=>i>=nextNameIndex && word.startsWith(part));
-    if(index<0)return false;
+    const index=nameParts.findIndex((word,i)=&gt;i&gt;=nextNameIndex &amp;&amp; word.startsWith(part));
+    if(index&lt;0)return false;
     nextNameIndex=index+1;
   }
   return true;
@@ -17988,7 +17986,7 @@ function search(type,q){
 
   /* Pencarian bebas:
      Produk bisa cari dari A, B, atau C */
-  const f=arr.filter(x=>{
+  const f=arr.filter(x=&gt;{
     if(type==='supplier'){
       return [x[0],x[1],x[2]].filter(Boolean).join(' ').toLowerCase().includes(s);
     }
@@ -18164,7 +18162,7 @@ const historyDateCache={};
 const historyDatePending={};
 let historyDateLoadKey='';
 function invalidateHistoryDateCache(category){
-  Object.keys(historyDateCache).forEach(key=>{if(key.startsWith(category+'|'))delete historyDateCache[key];});
+  Object.keys(historyDateCache).forEach(key=&gt;{if(key.startsWith(category+'|'))delete historyDateCache[key];});
 }
 
 function dateLabelShort(iso){
@@ -18183,23 +18181,23 @@ async function loadAvailableHistoryDates(selectedDate,category){
   const monthKey=parts[0]+'-'+parts[1];
   const key=category+'|'+monthKey;
   historyDateLoadKey=key;
-  const renderChips=(dates)=>{
+  const renderChips=(dates)=&gt;{
     if(historyDateLoadKey!==key)return;
-    if(!dates.length){box.innerHTML='<span style="font-size:9px;color:#8b929d">Belum ada tanggal terisi pada bulan ini.</span>';return;}
-    box.innerHTML=dates.map(date=>`<button type="button" data-date="${date}" style="border:1px solid ${date===input.value?'#f28a2e':'#e0e4e9'};background:${date===input.value?'#fff1e3':'#fff'};color:${date===input.value?'#c96a1d':'#4b5563'};border-radius:7px;padding:4px 6px;font-size:9px;font-weight:750;line-height:1.1;min-width:42px" onclick="selectHistoryDate('${date}')">${dateLabelShort(date)}</button>`).join('');
+    if(!dates.length){box.innerHTML='&lt;span style="font-size:9px;color:#8b929d"&gt;Belum ada tanggal terisi pada bulan ini.&lt;/span&gt;';return;}
+    box.innerHTML=dates.map(date=&gt;`&lt;button type="button" data-date="${date}" style="border:1px solid ${date===input.value?'#f28a2e':'#e0e4e9'};background:${date===input.value?'#fff1e3':'#fff'};color:${date===input.value?'#c96a1d':'#4b5563'};border-radius:7px;padding:4px 6px;font-size:9px;font-weight:750;line-height:1.1;min-width:42px" onclick="selectHistoryDate('${date}')"&gt;${dateLabelShort(date)}&lt;/button&gt;`).join('');
   };
   if(Object.prototype.hasOwnProperty.call(historyDateCache,key)){
     renderChips(historyDateCache[key]);
     return historyDateCache[key];
   }
   if(historyDatePending[key]){
-    box.innerHTML='<span style="font-size:9px;color:#8b929d">Memuat tanggal tersimpan...</span>';
+    box.innerHTML='&lt;span style="font-size:9px;color:#8b929d"&gt;Memuat tanggal tersimpan...&lt;/span&gt;';
     const dates=await historyDatePending[key];
     renderChips(dates||[]);
     return dates||[];
   }
-  box.innerHTML='<span style="font-size:9px;color:#8b929d">Memuat tanggal...</span>';
-  historyDatePending[key]=(async()=>{
+  box.innerHTML='&lt;span style="font-size:9px;color:#8b929d"&gt;Memuat tanggal...&lt;/span&gt;';
+  historyDatePending[key]=(async()=&gt;{
     const result=await apiGet({action:'historyDates',category,bulan:monthKey});
     const dates=Array.isArray(result.dates)?result.dates:[];
     dates.sort();
@@ -18214,7 +18212,7 @@ async function loadAvailableHistoryDates(selectedDate,category){
   }catch(err){
     delete historyDatePending[key];
     console.warn('Gagal memuat daftar tanggal riwayat:',err);
-    if(historyDateLoadKey===key)box.innerHTML='<span style="font-size:11px;color:#8b929d">Tanggal terisi belum dapat dimuat.</span>';
+    if(historyDateLoadKey===key)box.innerHTML='&lt;span style="font-size:11px;color:#8b929d"&gt;Tanggal terisi belum dapat dimuat.&lt;/span&gt;';
     return [];
   }
 }
@@ -18226,7 +18224,7 @@ async function changeHistoryMonth(monthValue){
   const dateInput=document.getElementById('hd');
   if(dateInput)dateInput.value=monthStart;
   const dates=await loadAvailableHistoryDates(monthStart,historyType);
-  if(dateInput && dates && dates.length)dateInput.value=dates[0];
+  if(dateInput &amp;&amp; dates &amp;&amp; dates.length)dateInput.value=dates[0];
   render();
 }
 
@@ -18533,109 +18531,101 @@ function setScannerValue(targetId,value){
   input.focus();
 }
 
-async function tuneScannerCamera(){
-  try{
-    const video=document.querySelector('#scannerReader video');
-    if(!video||!video.srcObject)return;
-    const track=video.srcObject.getVideoTracks()[0];
-    if(!track)return;
-    const caps=track.getCapabilities ? track.getCapabilities() : {};
-    const advanced={};
-    if(caps.focusMode &amp;&amp; Array.isArray(caps.focusMode) &amp;&amp; caps.focusMode.includes('continuous')) advanced.focusMode='continuous';
- if(caps.zoom){
-  const min=Number(caps.zoom.min||1);
-  const max=Number(caps.zoom.max||min);
-  const target=Math.min(max,Math.max(min,2.0));
-  if(target>min)advanced.zoom=target;
-}
-    if(Object.keys(advanced).length){try{await track.applyConstraints({advanced:[advanced]});}catch(e){}}
-  }catch(e){}
+function incomingZXingFormats(){
+  const B=window.ZXing?.BarcodeFormat;
+  return B ? [
+    B.QR_CODE,B.CODE_128,B.CODE_39,B.CODE_93,
+    B.EAN_13,B.EAN_8,B.UPC_A,B.UPC_E,B.ITF
+  ] : [];
 }
 
+async function tuneScannerCamera(video,zoom=2){
+  try{
+    const track=video?.srcObject?.getVideoTracks?.()[0];
+    if(!track)return;
+    const caps=track.getCapabilities?.()||{};
+    const advanced={};
+    if(Array.isArray(caps.focusMode)&amp;&amp;caps.focusMode.includes('continuous')){
+      advanced.focusMode='continuous';
+    }
+    if(caps.zoom){
+      const min=Number(caps.zoom.min||1);
+      const max=Number(caps.zoom.max||min);
+      advanced.zoom=Math.min(max,Math.max(min,zoom));
+    }
+    if(Object.keys(advanced).length)await track.applyConstraints({advanced:[advanced]});
+  }catch(e){console.log('Camera adjustment:',e);}
+}
 
 async function openScanner(targetId){
-  if(!document.getElementById(targetId))return;
-
+  const target=document.getElementById(targetId);
+  if(!target)return;
   scannerTargetId=targetId;
 
   const modal=document.getElementById('scannerModal');
   const status=document.getElementById('scannerStatus');
+  const reader=document.getElementById('scannerReader');
+  if(!modal||!status||!reader)return;
 
   modal.classList.add('on');
   modal.setAttribute('aria-hidden','false');
   status.textContent='Arahkan barcode ke kotak putih';
 
-  if(scannerInstance){
-    await closeScanner(false);
-    modal.classList.add('on');
-    modal.setAttribute('aria-hidden','false');
-  }
+  if(scannerInstance)await closeScanner(false);
 
-  if(typeof Html5Qrcode==='undefined'){
-    status.textContent='Scanner tidak tersedia. Silakan input manual.';
+  if(!window.ZXing?.BrowserMultiFormatReader){
+    status.textContent='Library ZXing belum tersedia. Silakan input manual.';
     return;
   }
 
-  scannerInstance=new Html5Qrcode('scannerReader');
   scannerBusy=false;
+  reader.innerHTML='';
+  const video=document.createElement('video');
+  video.setAttribute('playsinline','true');
+  video.setAttribute('autoplay','true');
+  video.muted=true;
+  video.style.cssText='width:100%;height:100%;object-fit:cover;display:block';
+  reader.appendChild(video);
 
   try{
-    const formats=[
-      Html5QrcodeSupportedFormats.QR_CODE,
-      Html5QrcodeSupportedFormats.CODE_128,
-      Html5QrcodeSupportedFormats.CODE_39,
-      Html5QrcodeSupportedFormats.CODE_93,
-      Html5QrcodeSupportedFormats.EAN_13,
-      Html5QrcodeSupportedFormats.EAN_8,
-      Html5QrcodeSupportedFormats.UPC_A,
-      Html5QrcodeSupportedFormats.UPC_E,
-      Html5QrcodeSupportedFormats.ITF
-    ];
+    const hints=new Map();
+    const formats=incomingZXingFormats();
+    if(formats.length)hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS,formats);
+    hints.set(ZXing.DecodeHintType.TRY_HARDER,true);
 
-    const config={
-      fps:20,
-      aspectRatio:2,
-      disableFlip:true,
-      formatsToSupport:formats,
-      experimentalFeatures:{
-        useBarCodeDetectorIfSupported:true
-      }
-    };
-
-    await scannerInstance.start(
-      {facingMode:"environment"},
-      config,
-      async decodedText=>{
-        if(scannerBusy)return;
-
+    const scanner=new ZXing.BrowserMultiFormatReader(hints,250);
+    scannerInstance=scanner;
+    await scanner.decodeFromConstraints(
+      {video:{facingMode:{ideal:'environment'}}},
+      video,
+      (result,error)=&gt;{
+        if(!result||scannerBusy)return;
         scannerBusy=true;
-        setScannerValue(scannerTargetId,decodedText);
-        status.textContent="Berhasil dibaca";
-
-        setTimeout(()=>closeScanner(),120);
-      },
-      ()=>{}
+        const decodedText=String(result.getText?.()||'').trim();
+        if(decodedText)setScannerValue(scannerTargetId,decodedText);
+        status.textContent='Berhasil dibaca';
+        setTimeout(()=&gt;closeScanner(),120);
+      }
     );
-
+    setTimeout(()=&gt;tuneScannerCamera(video,2),700);
   }catch(err){
-    console.error("Scanner error:",err);
-    status.textContent="Kamera tidak dapat dibuka. Izinkan akses kamera atau input manual.";
-
-    try{
-      await scannerInstance.clear();
-    }catch(e){}
-
-    scannerInstance=null;
+    console.error('ZXing scanner error:',err);
+    status.textContent='Kamera tidak dapat dibuka. Izinkan akses kamera atau input manual.';
+    await closeScanner(false);
+    modal.classList.add('on');
+    modal.setAttribute('aria-hidden','false');
   }
 }
 
 async function closeScanner(hide=true){
   const modal=document.getElementById('scannerModal');
   const reader=document.getElementById('scannerReader');
-  if(hide){modal.classList.remove('on');modal.setAttribute('aria-hidden','true');}
+  if(hide&amp;&amp;modal){
+    modal.classList.remove('on');
+    modal.setAttribute('aria-hidden','true');
+  }
   if(scannerInstance){
-    try{if(scannerInstance.isScanning)await scannerInstance.stop();}catch(e){}
-    try{await scannerInstance.clear();}catch(e){}
+    try{scannerInstance.reset();}catch(e){}
     scannerInstance=null;
   }
   scannerTargetId=null;
