@@ -6594,6 +6594,13 @@ body
   }
 }</style>
 <script src="https://unpkg.com/@zxing/library@0.21.3/umd/index.min.js"></script>
+
+<style id="password-eye-toggle-style">
+.password-wrapper{position:relative;width:100%}
+.password-wrapper .input{width:100%;padding-right:48px!important;box-sizing:border-box}
+.password-toggle{position:absolute;right:10px;top:50%;transform:translateY(-50%);display:flex;align-items:center;justify-content:center;width:34px;height:34px;padding:0;border:0;background:transparent;color:#777;font-size:18px;line-height:1;cursor:pointer;z-index:2}
+.password-toggle:focus-visible{outline:2px solid #ff7a00;outline-offset:1px;border-radius:7px}
+</style>
 </head>
 <body>
 <section id="loginPage">
@@ -6611,7 +6618,10 @@ body
 </div>
 <div class="input-group">
 <label>PASSWORD</label>
+<div class="password-wrapper">
 <input id="loginPassword" class="input" type="password" autocomplete="current-password" placeholder="Masukkan password" >
+<button type="button" class="password-toggle" onclick="togglePassword('loginPassword',this)" aria-label="Tampilkan password">👁</button>
+</div>
 </div>
 <button id="loginButton" class="btn btn-primary" onclick="login()" > LOGIN </button>
 <div class="login-actions">
@@ -6908,11 +6918,17 @@ body
 </div>
 <div class="input-group">
 <label> PASSWORD </label>
+<div class="password-wrapper">
 <input id="signupPassword" class="input" type="password" placeholder="Minimal 6 karakter" >
+<button type="button" class="password-toggle" onclick="togglePassword('signupPassword',this)" aria-label="Tampilkan password">👁</button>
+</div>
 </div>
 <div class="input-group">
 <label> KONFIRMASI PASSWORD </label>
+<div class="password-wrapper">
 <input id="signupConfirm" class="input" type="password" placeholder="Ulangi password" >
+<button type="button" class="password-toggle" onclick="togglePassword('signupConfirm',this)" aria-label="Tampilkan password">👁</button>
+</div>
 </div>
 <button class="btn btn-primary" onclick="signup()" > DAFTAR </button>
 <div id="signupMessage" class="message" >
@@ -18707,4 +18723,15 @@ function closeIncoming(){
   document.getElementById("dashboard")?.classList.remove("hidden");
   updateOnlineStatus?.();
 }</script>
+
+<script id="password-eye-toggle-script">
+window.togglePassword=function(id,button){
+  const input=document.getElementById(id);
+  if(!input || !button) return;
+  const show=input.type==="password";
+  input.type=show?"text":"password";
+  button.textContent=show?"🙈":"👁";
+  button.setAttribute("aria-label",show?"Sembunyikan password":"Tampilkan password");
+};
+</script>
 </body></html>
