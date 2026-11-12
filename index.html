@@ -6620,7 +6620,7 @@ body
 <label>PASSWORD</label>
 <div class="password-wrapper">
 <input id="loginPassword" class="input" type="password" autocomplete="current-password" placeholder="Masukkan password" >
-<button type="button" class="password-toggle" onclick="togglePassword('loginPassword',this)" aria-label="Tampilkan password">👁</button>
+<button type="button" class="password-toggle" onclick="togglePassword('loginPassword',this)" aria-label="Tampilkan password">🐵</button>
 </div>
 </div>
 <button id="loginButton" class="btn btn-primary" onclick="login()" > LOGIN </button>
@@ -6920,14 +6920,14 @@ body
 <label> PASSWORD </label>
 <div class="password-wrapper">
 <input id="signupPassword" class="input" type="password" placeholder="Minimal 6 karakter" >
-<button type="button" class="password-toggle" onclick="togglePassword('signupPassword',this)" aria-label="Tampilkan password">👁</button>
+<button type="button" class="password-toggle" onclick="togglePassword('signupPassword',this)" aria-label="Tampilkan password">🐵</button>
 </div>
 </div>
 <div class="input-group">
 <label> KONFIRMASI PASSWORD </label>
 <div class="password-wrapper">
 <input id="signupConfirm" class="input" type="password" placeholder="Ulangi password" >
-<button type="button" class="password-toggle" onclick="togglePassword('signupConfirm',this)" aria-label="Tampilkan password">👁</button>
+<button type="button" class="password-toggle" onclick="togglePassword('signupConfirm',this)" aria-label="Tampilkan password">🐵</button>
 </div>
 </div>
 <button class="btn btn-primary" onclick="signup()" > DAFTAR </button>
@@ -18730,7 +18730,7 @@ window.togglePassword=function(id,button){
   if(!input || !button) return;
   const show=input.type==="password";
   input.type=show?"text":"password";
-  button.textContent=show?"🙈":"👁";
+  button.textContent=show?"🙈":"🐵";
   button.setAttribute("aria-label",show?"Sembunyikan password":"Tampilkan password");
 };
 </script>
