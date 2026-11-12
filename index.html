@@ -18570,69 +18570,81 @@ async function tuneScannerCamera(){
   }catch(e){}
 }
 
+
 async function openScanner(targetId){
   if(!document.getElementById(targetId))return;
+
   scannerTargetId=targetId;
+
   const modal=document.getElementById('scannerModal');
   const status=document.getElementById('scannerStatus');
+
   modal.classList.add('on');
   modal.setAttribute('aria-hidden','false');
   status.textContent='Arahkan barcode ke kotak putih';
-  if(scannerInstance){await closeScanner(false);modal.classList.add('on');modal.setAttribute('aria-hidden','false');}
-  if(typeof Html5Qrcode==='undefined'){status.textContent='Scanner tidak tersedia. Silakan input manual.';return;}
-    scannerInstance=new Html5Qrcode('scannerReader');
+
+  if(scannerInstance){
+    await closeScanner(false);
+    modal.classList.add('on');
+    modal.setAttribute('aria-hidden','false');
+  }
+
+  if(typeof Html5Qrcode==='undefined'){
+    status.textContent='Scanner tidak tersedia. Silakan input manual.';
+    return;
+  }
+
+  scannerInstance=new Html5Qrcode('scannerReader');
   scannerBusy=false;
 
   try{
-  const formats=(typeof Html5QrcodeSupportedFormats!=='undefined')?[
-    Html5QrcodeSupportedFormats.QR_CODE,
-    Html5QrcodeSupportedFormats.CODE_128,
-    Html5QrcodeSupportedFormats.CODE_39,
-    Html5QrcodeSupportedFormats.CODE_93,
-    Html5QrcodeSupportedFormats.EAN_13,
-    Html5QrcodeSupportedFormats.EAN_8,
-    Html5QrcodeSupportedFormats.UPC_A,
-    Html5QrcodeSupportedFormats.UPC_E,
-    Html5QrcodeSupportedFormats.ITF
-  ]:undefined;
+    const formats=[
+      Html5QrcodeSupportedFormats.QR_CODE,
+      Html5QrcodeSupportedFormats.CODE_128,
+      Html5QrcodeSupportedFormats.CODE_39,
+      Html5QrcodeSupportedFormats.CODE_93,
+      Html5QrcodeSupportedFormats.EAN_13,
+      Html5QrcodeSupportedFormats.EAN_8,
+      Html5QrcodeSupportedFormats.UPC_A,
+      Html5QrcodeSupportedFormats.UPC_E,
+      Html5QrcodeSupportedFormats.ITF
+    ];
 
-  const config={
-    fps:20,
-    aspectRatio:2,
-    disableFlip:true,
-    experimentalFeatures:{
-      useBarCodeDetectorIfSupported:true
-    }
-  };
+    const config={
+      fps:20,
+      aspectRatio:2,
+      disableFlip:true,
+      formatsToSupport:formats,
+      experimentalFeatures:{
+        useBarCodeDetectorIfSupported:true
+      }
+    };
 
-  if(formats){
-    config.formatsToSupport=formats;
+    await scannerInstance.start(
+      {facingMode:"environment"},
+      config,
+      async decodedText=>{
+        if(scannerBusy)return;
+
+        scannerBusy=true;
+        setScannerValue(scannerTargetId,decodedText);
+        status.textContent="Berhasil dibaca";
+
+        setTimeout(()=>closeScanner(),120);
+      },
+      ()=>{}
+    );
+
+  }catch(err){
+    console.error("Scanner error:",err);
+    status.textContent="Kamera tidak dapat dibuka. Izinkan akses kamera atau input manual.";
+
+    try{
+      await scannerInstance.clear();
+    }catch(e){}
+
+    scannerInstance=null;
   }
-
-  await scannerInstance.start(
-    {facingMode:"environment"},
-    config,
-    async decodedText=>{
-      if(scannerBusy)return;
-
-      scannerBusy=true;
-      setScannerValue(scannerTargetId,decodedText);
-      status.textContent="Berhasil dibaca";
-
-      setTimeout(()=>closeScanner(),120);
-    },
-    ()=>{}
-  );
-
-}catch(err){
-  console.error("Scanner error:",err);
-  status.textContent="Kamera tidak dapat dibuka. Izinkan akses kamera atau input manual.";
-
-  try{
-    await scannerInstance.clear();
-  }catch(e){}
-
-  scannerInstance=null;
 }
 
 async function closeScanner(hide=true){
