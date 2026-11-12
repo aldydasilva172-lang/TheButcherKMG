@@ -18580,8 +18580,9 @@ async function openScanner(targetId){
   status.textContent='Arahkan barcode ke kotak putih';
   if(scannerInstance){await closeScanner(false);modal.classList.add('on');modal.setAttribute('aria-hidden','false');}
   if(typeof Html5Qrcode==='undefined'){status.textContent='Scanner tidak tersedia. Silakan input manual.';return;}
-  scannerInstance=new Html5Qrcode('scannerReader');
+    scannerInstance=new Html5Qrcode('scannerReader');
   scannerBusy=false;
+
   try{
   const formats=(typeof Html5QrcodeSupportedFormats!=='undefined')?[
     Html5QrcodeSupportedFormats.QR_CODE,
