@@ -18583,7 +18583,6 @@ async function openScanner(targetId){
   scannerInstance=new Html5Qrcode('scannerReader');
   scannerBusy=false;
   try{
-    try{
   const formats=(typeof Html5QrcodeSupportedFormats!=='undefined')?[
     Html5QrcodeSupportedFormats.QR_CODE,
     Html5QrcodeSupportedFormats.CODE_128,
