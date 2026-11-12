@@ -11197,7 +11197,6 @@ async function openInventoryScanner(){
     useBarCodeDetectorIfSupported:true
   }
 };
-};
     if(formats)config.formatsToSupport=formats;
     await inventoryScannerInstance.start({facingMode:"environment"},config,async decodedText=>{
       if(inventoryScannerBusy)return;
@@ -18543,36 +18542,56 @@ async function openScanner(targetId){
   scannerInstance=new Html5Qrcode('scannerReader');
   scannerBusy=false;
   try{
-    const formats=(typeof Html5QrcodeSupportedFormats!=='undefined')?[
-      Html5QrcodeSupportedFormats.QR_CODE,Html5QrcodeSupportedFormats.CODE_128,
-      Html5QrcodeSupportedFormats.CODE_39,Html5QrcodeSupportedFormats.CODE_93,
-      Html5QrcodeSupportedFormats.EAN_13,Html5QrcodeSupportedFormats.EAN_8,
-      Html5QrcodeSupportedFormats.UPC_A,Html5QrcodeSupportedFormats.UPC_E,
-      Html5QrcodeSupportedFormats.ITF
-    ]:undefined;
-    const config={
-  fps:20,
-  aspectRatio:2,
-  disableFlip:true,
-  formatsToSupport:formats,
-  experimentalFeatures:{
-    useBarCodeDetectorIfSupported:true
+    try{
+  const formats=(typeof Html5QrcodeSupportedFormats!=='undefined')?[
+    Html5QrcodeSupportedFormats.QR_CODE,
+    Html5QrcodeSupportedFormats.CODE_128,
+    Html5QrcodeSupportedFormats.CODE_39,
+    Html5QrcodeSupportedFormats.CODE_93,
+    Html5QrcodeSupportedFormats.EAN_13,
+    Html5QrcodeSupportedFormats.EAN_8,
+    Html5QrcodeSupportedFormats.UPC_A,
+    Html5QrcodeSupportedFormats.UPC_E,
+    Html5QrcodeSupportedFormats.ITF
+  ]:undefined;
+
+  const config={
+    fps:20,
+    aspectRatio:2,
+    disableFlip:true,
+    experimentalFeatures:{
+      useBarCodeDetectorIfSupported:true
+    }
+  };
+
+  if(formats){
+    config.formatsToSupport=formats;
   }
-};
-    if(formats)config.formatsToSupport=formats;
-    await scannerInstance.start({facingMode:'environment'},config,async decodedText=&gt;{
+
+  await scannerInstance.start(
+    {facingMode:"environment"},
+    config,
+    async decodedText=>{
       if(scannerBusy)return;
+
       scannerBusy=true;
       setScannerValue(scannerTargetId,decodedText);
-      status.textContent='Berhasil dibaca';
-      setTimeout(()=&gt;closeScanner(),120);
-    },()=&gt;{});
-    setTimeout(tuneScannerCamera,250);
-  }catch(err){
-    console.error(err);
-    status.textContent='Kamera tidak dapat dibuka. Izinkan akses kamera atau input manual.';
-    scannerInstance=null;
-  }
+      status.textContent="Berhasil dibaca";
+
+      setTimeout(()=>closeScanner(),120);
+    },
+    ()=>{}
+  );
+
+}catch(err){
+  console.error("Scanner error:",err);
+  status.textContent="Kamera tidak dapat dibuka. Izinkan akses kamera atau input manual.";
+
+  try{
+    await scannerInstance.clear();
+  }catch(e){}
+
+  scannerInstance=null;
 }
 
 async function closeScanner(hide=true){
