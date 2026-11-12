@@ -11190,12 +11190,13 @@ async function openInventoryScanner(){
     ]:undefined;
     const config={
   fps:20,
-  qrbox:{width:320,height:180},
   aspectRatio:2,
   disableFlip:true,
+  formatsToSupport:formats,
   experimentalFeatures:{
     useBarCodeDetectorIfSupported:true
   }
+};
 };
     if(formats)config.formatsToSupport=formats;
     await inventoryScannerInstance.start({facingMode:"environment"},config,async decodedText=>{
@@ -18551,9 +18552,9 @@ async function openScanner(targetId){
     ]:undefined;
     const config={
   fps:20,
-  qrbox:{width:320,height:180},
   aspectRatio:2,
   disableFlip:true,
+  formatsToSupport:formats,
   experimentalFeatures:{
     useBarCodeDetectorIfSupported:true
   }
