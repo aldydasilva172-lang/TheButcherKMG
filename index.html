@@ -6548,22 +6548,25 @@ body
   color:#4b5563;
   font-size:22px
 }
-#inventoryScannerReader
-{
+#inventoryScannerReader{
   width:300px;
   height:160px;
   max-width:100%;
   margin:0 auto;
   overflow:hidden;
   border-radius:13px;
-  background:#111
+  background:#111;
+  position:relative;
 }
-#inventoryScannerReader video
-{
+
+#inventoryScannerReader video{
   width:100%!important;
   height:100%!important;
-  object-fit:cover!important
+  object-fit:contain!important;
+  object-position:center center!important;
+  transform:none!important;
 }
+
 #inventoryScannerStatus
 {
   min-height:17px;
@@ -17544,8 +17547,24 @@ header.top &gt; button.icon:active{
 .scanner-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
 .scanner-head b{font-size:14px;letter-spacing:.4px;color:#17202a}
 .scanner-close{width:34px;height:34px;border:0;border-radius:10px;background:#f3f4f6;font-size:22px;line-height:1;cursor:pointer;color:#4b5563}
-#scannerReader{width:300px;height:160px;max-width:100%;margin:0 auto;overflow:hidden;border-radius:14px;background:#111}
-#scannerReader video{width:100%!important;height:100%!important;object-fit:cover!important}
+#scannerReader{
+  width:300px;
+  height:160px;
+  max-width:100%;
+  margin:0 auto;
+  overflow:hidden;
+  border-radius:14px;
+  background:#111;
+  position:relative;
+}
+
+#scannerReader video{
+  width:100%!important;
+  height:100%!important;
+  object-fit:contain!important;
+  object-position:center center!important;
+  transform:none!important;
+}
 #scannerStatus{text-align:center;font-size:11px;color:#74808c;margin:10px 2px 12px;min-height:16px}
 .scanner-actions{display:flex;gap:8px}
 .scanner-action{flex:1;height:40px;border:0;border-radius:11px;font-weight:700;cursor:pointer}
