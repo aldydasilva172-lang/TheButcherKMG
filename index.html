@@ -12747,10 +12747,79 @@ input{
   margin-right:5px;
 }
 
+
+/* Z-FOOD MASTER LOADING OVERLAY */
+#masterLoadingOverlay{
+  position:fixed;
+  inset:0;
+  z-index:99999;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:24px;
+  background:#f6f7f9;
+  color:#303640;
+}
+#masterLoadingOverlay .master-loading-card{
+  width:100%;
+  max-width:340px;
+  padding:30px 24px;
+  border:1px solid #e7e9ed;
+  border-radius:20px;
+  background:#fff;
+  box-shadow:0 14px 40px rgba(30,40,55,.08);
+  text-align:center;
+}
+#masterLoadingOverlay .master-loading-spinner{
+  width:42px;
+  height:42px;
+  margin:0 auto 17px;
+  border:4px solid #f1e4d8;
+  border-top-color:#e87516;
+  border-radius:50%;
+  animation:masterLoadingSpin .8s linear infinite;
+}
+@keyframes masterLoadingSpin{to{transform:rotate(360deg)}}
+#masterLoadingOverlay .master-loading-title{
+  font-size:16px;
+  font-weight:850;
+  color:#303640;
+}
+#masterLoadingOverlay .master-loading-message{
+  margin-top:7px;
+  color:#8a929e;
+  font-size:12px;
+  line-height:1.5;
+}
+#masterRetryButton{
+  display:none;
+  width:100%;
+  min-height:42px;
+  margin-top:18px;
+  border:0;
+  border-radius:11px;
+  background:#e87516;
+  color:#fff;
+  font-size:12px;
+  font-weight:800;
+}
+#masterLoadingOverlay.error .master-loading-spinner{display:none}
+#masterLoadingOverlay.error #masterRetryButton{display:block}
+
 &lt;/style&gt;
 &lt;style&gt;.dashboard-home-button{display:none!important}&lt;/style&gt;&lt;/head&gt;
 
 &lt;body&gt;
+
+&lt;div id="masterLoadingOverlay" role="status" aria-live="polite"&gt;
+  &lt;div class="master-loading-card"&gt;
+    &lt;div class="master-loading-spinner"&gt;&lt;/div&gt;
+    &lt;div class="master-loading-title" id="masterLoadingTitle"&gt;Menyiapkan Z-FOOD&lt;/div&gt;
+    &lt;div class="master-loading-message" id="masterLoadingMessage"&gt;Sedang mengambil data produk dari MASTER...&lt;/div&gt;
+    &lt;button type="button" id="masterRetryButton" onclick="loadMaster(true)"&gt;Coba Lagi&lt;/button&gt;
+  &lt;/div&gt;
+&lt;/div&gt;
+
 
 &lt;!-- =========================
      DASHBOARD
@@ -13325,9 +13394,15 @@ const APPS_SCRIPT_URL = '__ZFOOD_API_URL__';
 let MASTER_DATA = [];
 let masterLoaded = false;
 
-const MASTER_CACHE_KEY = `ZFOOD_${window.APP_CACHE_PREFIX}_MASTER_CACHE_V2`;
-const MASTER_CACHE_TIME_KEY = `ZFOOD_${window.APP_CACHE_PREFIX}_MASTER_CACHE_TIME_V2`;
-const MASTER_CACHE_MAX_AGE = 24 * 60 * 60 * 1000; // 24 jam
+// Cache browser khusus Z-FOOD dan API yang sedang digunakan.
+const MASTER_CACHE_NAMESPACE =
+  String(window.APP_CACHE_PREFIX || 'default') + '_' +
+  String(APPS_SCRIPT_URL || '').replace(/[^a-zA-Z0-9]/g, '_').slice(-100);
+const MASTER_CACHE_KEY = `ZFOOD_${MASTER_CACHE_NAMESPACE}_MASTER_CACHE_V3`;
+const MASTER_CACHE_TIME_KEY = `ZFOOD_${MASTER_CACHE_NAMESPACE}_MASTER_CACHE_TIME_V3`;
+const MASTER_CACHE_MAX_AGE = 30 * 60 * 1000; // 30 menit
+
+let masterLoadInProgress = false;
 
 
 /* =========================================================
@@ -13346,221 +13421,184 @@ let pendingTransactionKey = '';
    LOAD MASTER
 ========================================================= */
 
-function loadMaster(){
+function loadMaster(forceRefresh){
 
-  /*
-    CACHE-FIRST:
-    1. Coba gunakan MASTER dari localStorage.
-    2. Kalau ada, langsung aktifkan aplikasi tanpa menunggu server.
-    3. Tetap refresh MASTER di background agar data tetap terbaru.
-    4. Kalau belum ada cache, baru tampilkan status loading.
-  */
+  if(masterLoadInProgress) return;
 
-  let hasCache = false;
+  let hasFreshCache = false;
 
-  try{
-
-    const cached = localStorage.getItem(MASTER_CACHE_KEY);
-    const cachedTime = Number(
-      localStorage.getItem(MASTER_CACHE_TIME_KEY) || 0
-    );
-
-    if(cached){
-
-      const parsed = JSON.parse(cached);
+  // Cache yang masih berumur maksimal 30 menit langsung digunakan.
+  // Cache kedaluwarsa tidak dipakai sebagai data aktif.
+  if(!forceRefresh){
+    try{
+      const cached = localStorage.getItem(MASTER_CACHE_KEY);
+      const cachedTime = Number(
+        localStorage.getItem(MASTER_CACHE_TIME_KEY) || 0
+      );
+      const cacheAge = Date.now() - cachedTime;
 
       if(
-        Array.isArray(parsed) &amp;&amp;
-        parsed.length &gt; 0
+        cached &&
+        cachedTime > 0 &&
+        cacheAge >= 0 &&
+        cacheAge < MASTER_CACHE_MAX_AGE
       ){
+        const parsed = JSON.parse(cached);
 
-        MASTER_DATA = parsed;
-        masterLoaded = true;
-        hasCache = true;
-
-        setMasterStatus(
-          'MASTER DATA SIAP • ' +
-          MASTER_DATA.length +
-          ' data',
-          'ready'
-        );
-
-        ensureInitialProducts();
-      }
-
-    }
-
-  }catch(error){
-
-    console.warn(
-      'Cache MASTER tidak dapat digunakan:',
-      error
-    );
-
-  }
-
-
-  /*
-    Kalau belum ada cache:
-    tampilkan loading.
-    Kalau sudah ada cache:
-    jangan blokir user.
-  */
-
-  if(!hasCache){
-
-    setMasterStatus(
-      'Memuat MASTER...',
-      'loading'
-    );
-
-  }
-
-
-  /*
-    Ambil MASTER terbaru di background.
-  */
-
-  const callbackName =
-    'zfoodMaster_' +
-    Date.now() +
-    '_' +
-    Math.floor(Math.random() * 10000);
-
-
-  window[callbackName] =
-    function(response){
-
-      try{
-
-        if(
-          response &amp;&amp;
-          response.success &amp;&amp;
-          Array.isArray(response.data)
-        ){
-
-          MASTER_DATA =
-            response.data;
-
+        if(Array.isArray(parsed) && parsed.length > 0){
+          MASTER_DATA = parsed;
           masterLoaded = true;
-
-
-          /*
-            Simpan MASTER terbaru secara permanen
-            di browser.
-          */
-
-          try{
-
-            localStorage.setItem(
-              MASTER_CACHE_KEY,
-              JSON.stringify(MASTER_DATA)
-            );
-
-            localStorage.setItem(
-              MASTER_CACHE_TIME_KEY,
-              String(Date.now())
-            );
-
-          }catch(cacheError){
-
-            console.warn(
-              'Gagal menyimpan cache MASTER:',
-              cacheError
-            );
-
-          }
-
+          hasFreshCache = true;
 
           setMasterStatus(
-            'MASTER DATA SIAP • ' +
-            MASTER_DATA.length +
-            ' data',
+            'MASTER SIAP • ' + MASTER_DATA.length + ' produk',
             'ready'
           );
-
-
           ensureInitialProducts();
-
-
-        }else{
-
-          /*
-            Kalau server gagal tetapi cache ada,
-            jangan ganggu user.
-          */
-
-          if(!hasCache){
-
-            throw new Error(
-              response &amp;&amp; response.error
-                ? response.error
-                : 'Data MASTER tidak valid.'
-            );
-
-          }
-
         }
+      }
+    }catch(cacheError){
+      console.warn('Cache MASTER tidak dapat digunakan:', cacheError);
+    }
+  }
 
+  // Tanpa cache yang masih valid, tampilkan layar loading.
+  if(!hasFreshCache){
+    masterLoaded = false;
+    MASTER_DATA = [];
+    setMasterStatus(
+      'Sedang mengambil data produk dari MASTER...',
+      'loading'
+    );
+  }
 
-      }catch(error){
+  masterLoadInProgress = true;
 
-        console.error(error);
+  const callbackName =
+    'zfoodMaster_' + Date.now() + '_' +
+    Math.floor(Math.random() * 10000);
 
-        if(!hasCache){
+  const script = document.createElement('script');
+  script.async = true;
+  let finished = false;
 
-          setMasterStatus(
-            'Gagal memuat MASTER',
-            'error'
-          );
+  function finish(){
+    if(finished) return;
+    finished = true;
+    clearTimeout(timeoutId);
+    cleanupJSONP(callbackName);
+    if(script.parentNode) script.parentNode.removeChild(script);
+    masterLoadInProgress = false;
+  }
 
-        }
+  const timeoutId = setTimeout(function(){
+    if(finished) return;
 
+    if(!hasFreshCache){
+      masterLoaded = false;
+      setMasterStatus(
+        'Waktu tunggu habis saat membaca MASTER. Periksa koneksi lalu coba lagi.',
+        'error'
+      );
+    }else{
+      setMasterStatus(
+        'MASTER SIAP • ' + MASTER_DATA.length + ' produk (cache)',
+        'ready'
+      );
+    }
+
+    finish();
+  }, 30000);
+
+  window[callbackName] = function(response){
+    if(finished) return;
+
+    try{
+      if(
+        !response ||
+        response.success !== true ||
+        !Array.isArray(response.data) ||
+        response.data.length === 0
+      ){
+        throw new Error(
+          response && response.error
+            ? response.error
+            : 'Data MASTER kosong atau tidak valid.'
+        );
       }
 
+      MASTER_DATA = response.data;
+      masterLoaded = true;
 
-      cleanupJSONP(callbackName);
+      try{
+        localStorage.setItem(
+          MASTER_CACHE_KEY,
+          JSON.stringify(MASTER_DATA)
+        );
+        localStorage.setItem(
+          MASTER_CACHE_TIME_KEY,
+          String(Date.now())
+        );
+      }catch(cacheError){
+        console.warn('Gagal menyimpan cache MASTER:', cacheError);
+      }
 
-    };
+      setMasterStatus(
+        'MASTER SIAP • ' + MASTER_DATA.length + ' produk',
+        'ready'
+      );
 
+      ensureInitialProducts();
 
-  const script =
-    document.createElement('script');
+    }catch(error){
+      console.error('[Z-FOOD] Gagal memuat MASTER:', error);
+
+      if(!hasFreshCache){
+        masterLoaded = false;
+        setMasterStatus(
+          'Gagal memuat MASTER: ' + error.message,
+          'error'
+        );
+      }else{
+        // Cache yang masih valid tetap dapat dipakai jika refresh API gagal.
+        setMasterStatus(
+          'MASTER SIAP • ' + MASTER_DATA.length + ' produk (cache)',
+          'ready'
+        );
+      }
+
+    }finally{
+      finish();
+    }
+  };
+
+  script.onerror = function(){
+    if(finished) return;
+
+    if(!hasFreshCache){
+      masterLoaded = false;
+      setMasterStatus(
+        'Gagal terhubung ke API MASTER. Periksa koneksi lalu coba lagi.',
+        'error'
+      );
+    }else{
+      // Kegagalan refresh tidak mematikan data cache yang masih valid.
+      setMasterStatus(
+        'MASTER SIAP • ' + MASTER_DATA.length + ' produk (cache)',
+        'ready'
+      );
+    }
+
+    finish();
+  };
 
   script.src =
     APPS_SCRIPT_URL +
-    '?callback=' +
-    encodeURIComponent(callbackName) +
-    '&amp;_=' +
-    Date.now();
-
-
-  script.onerror =
-    function(){
-
-      /*
-        Jika cache tersedia, aplikasi tetap berjalan.
-        Error server tidak membuat MASTER menjadi blank.
-      */
-
-      if(!hasCache){
-
-        setMasterStatus(
-          'Gagal terhubung ke MASTER',
-          'error'
-        );
-
-      }
-
-      cleanupJSONP(callbackName);
-
-    };
-
+    '?callback=' + encodeURIComponent(callbackName) +
+    '&_=' + Date.now();
 
   document.body.appendChild(script);
-
 }
-
 
 /*
   Pastikan produk awal dan akhir hanya dibuat
@@ -13615,45 +13653,45 @@ function cleanupJSONP(name){
    MASTER STATUS
 ========================================================= */
 
-function setMasterStatus(
-  text,
-  state
-){
+function setMasterStatus(text, state){
 
-  const box =
-    document.getElementById(
-      'masterStatus'
-    );
+  const box = document.getElementById('masterStatus');
+  const label = document.getElementById('masterStatusText');
+  const overlay = document.getElementById('masterLoadingOverlay');
+  const title = document.getElementById('masterLoadingTitle');
+  const detail = document.getElementById('masterLoadingMessage');
 
-  const label =
-    document.getElementById(
-      'masterStatusText'
-    );
+  if(label) label.textContent = text || '';
 
+  if(box){
+    box.classList.remove('ready','error');
+    if(state === 'ready') box.classList.add('ready');
+    if(state === 'error') box.classList.add('error');
+  }
 
-  label.textContent = text;
+  if(!overlay) return;
 
+  overlay.classList.remove('error');
 
-  box.classList.remove(
-    'ready',
-    'error'
-  );
-
-
-  if(state === 'ready'){
-
-    box.classList.add('ready');
-
+  if(state === 'loading'){
+    overlay.style.display = 'flex';
+    if(title) title.textContent = 'Menyiapkan Z-FOOD';
+    if(detail) detail.textContent = text || 'Sedang mengambil data produk dari MASTER...';
+    return;
   }
 
   if(state === 'error'){
-
-    box.classList.add('error');
-
+    overlay.style.display = 'flex';
+    overlay.classList.add('error');
+    if(title) title.textContent = 'MASTER belum berhasil dimuat';
+    if(detail) detail.textContent = text || 'Periksa koneksi internet, lalu coba lagi.';
+    return;
   }
 
+  if(state === 'ready'){
+    overlay.style.display = 'none';
+  }
 }
-
 
 /* =========================================================
    ADD PRODUCT
