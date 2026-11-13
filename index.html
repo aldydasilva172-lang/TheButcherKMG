@@ -2694,7 +2694,6 @@ button
   letter-spacing:.7px;
   color:#8a919c;
 }
-
 #dashboard .sidebar-divider
 {
   height:1px;
@@ -6564,7 +6563,6 @@ body
   height:100%!important;
   object-fit:cover!important
 }
-
 #inventoryScannerStatus
 {
   min-height:17px;
@@ -6593,13 +6591,46 @@ body
     right:6px
   }
 }</style>
-<script src="https://unpkg.com/@zxing/library@0.21.3/umd/index.min.js"></script>
+<script src="https://unpkg.com/@zxing/library@latest"></script>
 
-<style id="password-eye-toggle-style">
-.password-wrapper{position:relative;width:100%}
-.password-wrapper .input{width:100%;padding-right:48px!important;box-sizing:border-box}
-.password-toggle{position:absolute;right:10px;top:50%;transform:translateY(-50%);display:flex;align-items:center;justify-content:center;width:34px;height:34px;padding:0;border:0;background:transparent;color:#777;font-size:18px;line-height:1;cursor:pointer;z-index:2}
-.password-toggle:focus-visible{outline:2px solid #ff7a00;outline-offset:1px;border-radius:7px}
+<style id="password-eye-style">
+.password-wrapper{
+  position:relative;
+  width:100%;
+}
+.password-wrapper .input{
+  width:100%;
+  padding-right:48px!important;
+}
+.password-toggle{
+  position:absolute;
+  right:9px;
+  top:50%;
+  transform:translateY(-50%);
+  width:34px;
+  height:34px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  border:0;
+  border-radius:9px;
+  background:transparent;
+  color:#aeb4bf;
+  font-size:17px;
+  line-height:1;
+  cursor:pointer;
+  z-index:2;
+  -webkit-tap-highlight-color:transparent;
+}
+.password-toggle:hover,
+.password-toggle:focus-visible{
+  color:var(--orange2);
+  background:rgba(255,122,0,.09);
+  outline:none;
+}
+.password-toggle:active{
+  transform:translateY(-50%) scale(.94);
+}
 </style>
 </head>
 <body>
@@ -6620,7 +6651,7 @@ body
 <label>PASSWORD</label>
 <div class="password-wrapper">
 <input id="loginPassword" class="input" type="password" autocomplete="current-password" placeholder="Masukkan password" >
-<button type="button" class="password-toggle" onclick="togglePassword('loginPassword',this)" aria-label="Tampilkan password">🐵</button>
+<button type="button" class="password-toggle" onclick="togglePassword('loginPassword',this)" aria-label="Tampilkan password" aria-pressed="false">🐵</button>
 </div>
 </div>
 <button id="loginButton" class="btn btn-primary" onclick="login()" > LOGIN </button>
@@ -6751,7 +6782,7 @@ body
 <div class="inventory-logo"> TB </div>
 <div>
 <strong> THE BUTCHER </strong>
-<span>RANCH MARKET KEMANG</span>
+<span>SYSTEM MANAGEMENT</span>
 </div>
 </div>
 <button class="back-button" onclick="backToDashboard()" > ← Dashboard </button>
@@ -6920,14 +6951,14 @@ body
 <label> PASSWORD </label>
 <div class="password-wrapper">
 <input id="signupPassword" class="input" type="password" placeholder="Minimal 6 karakter" >
-<button type="button" class="password-toggle" onclick="togglePassword('signupPassword',this)" aria-label="Tampilkan password">🐵</button>
+<button type="button" class="password-toggle" onclick="togglePassword('signupPassword',this)" aria-label="Tampilkan password" aria-pressed="false">🐵</button>
 </div>
 </div>
 <div class="input-group">
 <label> KONFIRMASI PASSWORD </label>
 <div class="password-wrapper">
 <input id="signupConfirm" class="input" type="password" placeholder="Ulangi password" >
-<button type="button" class="password-toggle" onclick="togglePassword('signupConfirm',this)" aria-label="Tampilkan password">🐵</button>
+<button type="button" class="password-toggle" onclick="togglePassword('signupConfirm',this)" aria-label="Tampilkan password" aria-pressed="false">🐵</button>
 </div>
 </div>
 <button class="btn btn-primary" onclick="signup()" > DAFTAR </button>
@@ -11176,116 +11207,158 @@ console.log(
    INVENTORY BARCODE CAMERA SCANNER
    Shared by STOCK LOSS and STOCK OPNAME
 ===================================================== */
-let inventoryScannerInstance=null;
+let inventoryScannerReader=null;
+let inventoryScannerControls=null;
 let inventoryScannerBusy=false;
-
-function inventoryZXingFormats(){
-  const B=window.ZXing?.BarcodeFormat;
-  return B ? [
-    B.CODE_128,B.CODE_39,B.CODE_93,B.EAN_13,B.EAN_8,
-    B.UPC_A,B.UPC_E,B.ITF,B.QR_CODE
-  ] : [];
-}
-
-async function applyZXingCameraTune(video,zoom=2){
-  try{
-    const track=video?.srcObject?.getVideoTracks?.()[0];
-    if(!track)return;
-    const caps=track.getCapabilities?.()||{};
-    const advanced={};
-    if(Array.isArray(caps.focusMode)&&caps.focusMode.includes("continuous")){
-      advanced.focusMode="continuous";
-    }
-    if(caps.zoom){
-      const min=Number(caps.zoom.min||1);
-      const max=Number(caps.zoom.max||min);
-      advanced.zoom=Math.min(max,Math.max(min,zoom));
-    }
-    if(Object.keys(advanced).length)await track.applyConstraints({advanced:[advanced]});
-  }catch(e){console.log("Camera adjustment:",e);}
-}
 
 async function openInventoryScanner(){
   const modal=document.getElementById("inventoryScannerModal");
   const status=document.getElementById("inventoryScannerStatus");
-  const reader=document.getElementById("inventoryScannerReader");
-  if(!modal||!status||!reader)return;
+  const readerBox=document.getElementById("inventoryScannerReader");
+  if(!modal||!status||!readerBox)return;
 
   modal.classList.add("on");
   modal.setAttribute("aria-hidden","false");
-  status.textContent="Arahkan barcode ke kamera";
+  status.textContent="Menyiapkan kamera...";
 
-  if(inventoryScannerInstance)await closeInventoryScanner(false);
+  if(inventoryScannerReader||inventoryScannerControls){
+    await closeInventoryScanner(false);
+    modal.classList.add("on");
+    modal.setAttribute("aria-hidden","false");
+  }
 
-  if(!window.ZXing?.BrowserMultiFormatReader){
-    status.textContent="Library ZXing belum tersedia. Silakan masukkan barcode manual.";
+  if(typeof ZXing==="undefined"||!ZXing.BrowserMultiFormatReader){
+    status.textContent="Library ZXing belum tersedia. Silakan input barcode manual.";
     return;
   }
 
   inventoryScannerBusy=false;
-  reader.innerHTML="";
+  readerBox.innerHTML="";
   const video=document.createElement("video");
   video.setAttribute("playsinline","true");
   video.setAttribute("autoplay","true");
+  video.setAttribute("muted","true");
   video.muted=true;
-  video.style.cssText="width:100%;height:100%;object-fit:cover;display:block";
-  reader.appendChild(video);
+  video.style.cssText="width:100%;height:100%;object-fit:cover;display:block;";
+  readerBox.appendChild(video);
 
   try{
     const hints=new Map();
-    const formats=inventoryZXingFormats();
-    if(formats.length)hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS,formats);
+    const formats=[
+      ZXing.BarcodeFormat.CODE_128,
+      ZXing.BarcodeFormat.CODE_39,
+      ZXing.BarcodeFormat.CODE_93,
+      ZXing.BarcodeFormat.EAN_13,
+      ZXing.BarcodeFormat.EAN_8,
+      ZXing.BarcodeFormat.UPC_A,
+      ZXing.BarcodeFormat.UPC_E,
+      ZXing.BarcodeFormat.ITF,
+      ZXing.BarcodeFormat.QR_CODE
+    ].filter(Boolean);
+
+    hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS,formats);
     hints.set(ZXing.DecodeHintType.TRY_HARDER,true);
 
-    const scanner=new ZXing.BrowserMultiFormatReader(hints,250);
-    inventoryScannerInstance=scanner;
-    await scanner.decodeFromConstraints(
-      {video:{facingMode:{ideal:"environment"}}},
+    inventoryScannerReader=new ZXing.BrowserMultiFormatReader(hints,250);
+    status.textContent="Arahkan barcode ke kamera";
+
+    inventoryScannerControls=await inventoryScannerReader.decodeFromVideoDevice(
+      undefined,
       video,
-      (result,error)=>{
+      async(result,error)=>{
         if(!result||inventoryScannerBusy)return;
+
         inventoryScannerBusy=true;
-        const decodedText=String(result.getText?.()||"").trim();
+        const decodedText=String(result.getText()||"").trim();
         const input=document.getElementById("barcode");
-        if(input&&decodedText){
+
+        if(input){
           input.value=decodedText;
           input.dispatchEvent(new Event("input",{bubbles:true}));
           input.focus();
         }
+
         status.textContent="Barcode berhasil dibaca";
         setTimeout(()=>closeInventoryScanner(),180);
       }
     );
-    setTimeout(()=>applyZXingCameraTune(video,2),700);
+
+    // Terapkan fokus otomatis dan zoom setelah kamera aktif.
+    const applyInventoryCameraSettings=async()=>{
+      try{
+        const track=video.srcObject?.getVideoTracks?.()[0];
+        if(!track)return;
+
+        const caps=track.getCapabilities?.()||{};
+        const advanced={};
+
+        if(Array.isArray(caps.focusMode)&&caps.focusMode.includes("continuous")){
+          advanced.focusMode="continuous";
+        }
+
+        if(caps.zoom){
+          const min=Number(caps.zoom.min??1);
+          const max=Number(caps.zoom.max??min);
+          const target=Math.min(max,Math.max(min,2.0));
+          if(target>min)advanced.zoom=target;
+        }
+
+        if(Object.keys(advanced).length){
+          await track.applyConstraints({advanced:[advanced]});
+        }
+      }catch(err){
+        console.log("Pengaturan kamera Inventory tidak didukung:",err);
+      }
+    };
+
+    // Beri waktu browser memasang stream video terlebih dahulu.
+    setTimeout(applyInventoryCameraSettings,700);
+
   }catch(err){
-    console.error("Inventory ZXing scanner error:",err);
-    status.textContent="Kamera tidak dapat dibuka. Izinkan akses kamera atau gunakan input manual.";
-    await closeInventoryScanner(false);
-    modal.classList.add("on");
-    modal.setAttribute("aria-hidden","false");
+    console.error("ZXing Inventory scanner error:",err);
+    status.textContent="Kamera tidak dapat dibuka. Izinkan akses kamera atau input barcode manual.";
+    try{inventoryScannerControls?.stop();}catch(e){}
+    try{inventoryScannerReader?.reset();}catch(e){}
+    inventoryScannerControls=null;
+    inventoryScannerReader=null;
   }
 }
 
 async function closeInventoryScanner(hide=true){
   const modal=document.getElementById("inventoryScannerModal");
-  const reader=document.getElementById("inventoryScannerReader");
+  const readerBox=document.getElementById("inventoryScannerReader");
+
   if(hide&&modal){
     modal.classList.remove("on");
     modal.setAttribute("aria-hidden","true");
   }
-  if(inventoryScannerInstance){
-    try{inventoryScannerInstance.reset();}catch(e){}
-    inventoryScannerInstance=null;
-  }
+
+  try{
+    if(inventoryScannerControls){
+      inventoryScannerControls.stop();
+    }
+  }catch(e){}
+
+  try{
+    if(inventoryScannerReader){
+      inventoryScannerReader.reset();
+    }
+  }catch(e){}
+
+  inventoryScannerControls=null;
+  inventoryScannerReader=null;
   inventoryScannerBusy=false;
-  if(reader)reader.innerHTML="";
+
+  if(readerBox)readerBox.innerHTML="";
 }
 
 window.openInventoryScanner=openInventoryScanner;
 window.closeInventoryScanner=closeInventoryScanner;
 
 document.addEventListener("keydown",event=>{
-  if(event.key==="Escape"&&document.getElementById("inventoryScannerModal")?.classList.contains("on"))closeInventoryScanner();
+  if(event.key==="Escape"&&document.getElementById("inventoryScannerModal")?.classList.contains("on")){
+    closeInventoryScanner();
+  }
 });</script>
 <style id="THE-BUTCHER-ANDROID-OLD-PDT-SIDEBAR-FIX">/* =========================================================
    ANDROID LAMA / PDT — SIDEBAR SCROLL FIX
@@ -12747,7 +12820,9 @@ input{
   margin-right:5px;
 }
 
-
+&lt;/style&gt;
+&lt;style&gt;.dashboard-home-button{display:none!important}&lt;/style&gt;
+&lt;style&gt;
 /* Z-FOOD MASTER LOADING OVERLAY */
 #masterLoadingOverlay{
   position:fixed;
@@ -12805,24 +12880,90 @@ input{
 }
 #masterLoadingOverlay.error .master-loading-spinner{display:none}
 #masterLoadingOverlay.error #masterRetryButton{display:block}
-
-
-/* Z-FOOD ZXing scanner */
-.search{padding-right:0}
-.zfood-scan-btn{position:absolute;right:5px;top:25px;width:34px;height:30px;border:0;border-radius:7px;background:#e87516;color:#fff;font-size:17px;display:flex;align-items:center;justify-content:center;z-index:2}
-.search-input{padding-right:43px!important}
-#zfoodScannerModal{position:fixed;inset:0;z-index:99999;display:none;align-items:center;justify-content:center;padding:16px;background:rgba(0,0,0,.78)}
-#zfoodScannerModal.show{display:flex}
-.zfood-scanner-card{width:100%;max-width:430px;background:#fff;border-radius:16px;padding:15px;box-shadow:0 20px 60px rgba(0,0,0,.3)}
-.zfood-scanner-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;color:#222;font-weight:700;font-size:14px}
-.zfood-scanner-close{border:0;background:#f1f1f1;border-radius:8px;width:32px;height:32px;font-size:22px;color:#333}
-#zfoodScannerReader{width:100%;height:230px;overflow:hidden;border-radius:11px;background:#111}
-#zfoodScannerReader video{width:100%!important;height:100%!important;object-fit:contain!important;object-position:center!important}
-#zfoodScannerStatus{text-align:center;color:#666;font-size:12px;min-height:34px;padding:10px 2px}
-.zfood-scanner-cancel{width:100%;height:42px;border:0;border-radius:9px;background:#f1f2f4;color:#333;font-weight:700}
-
 &lt;/style&gt;
-&lt;style&gt;.dashboard-home-button{display:none!important}&lt;/style&gt;&lt;script src="https://unpkg.com/@zxing/library@latest"&gt;&lt;/script&gt;
+
+&lt;style id="zfood-zxing-scanner-style"&gt;
+.zfood-scan-field{position:relative;width:100%}
+.zfood-input-wrap{
+  position:relative;
+  width:100%;
+}
+.zfood-input-wrap .search-input{
+  display:block;
+  width:100%;
+  padding-right:54px!important;
+  box-sizing:border-box;
+}
+.zfood-input-wrap .zfood-scan-btn{
+  position:absolute;
+  top:50%;
+  right:5px;
+  transform:translateY(-50%);
+  width:36px;
+  height:36px;
+  margin:0;
+  padding:0;
+  border:0;
+  border-radius:8px;
+  background:#f7f8fa;
+  color:#4b5563;
+  display:grid;
+  place-items:center;
+  cursor:pointer;
+  z-index:5;
+  box-shadow:0 1px 3px rgba(0,0,0,.08);
+}
+.zfood-input-wrap .zfood-scan-btn:active{
+  transform:translateY(-50%) scale(.95);
+}
+.zfood-input-wrap .zfood-scan-btn svg{
+  width:19px;
+  height:19px;
+  display:block;
+}
+#zfoodScannerModal{
+  position:fixed;inset:0;z-index:100000;display:none;
+  align-items:center;justify-content:center;padding:18px;
+  background:rgba(10,14,20,.72)
+}
+#zfoodScannerModal.on{display:flex}
+.zfood-scanner-card{
+  width:min(100%,360px);background:#fff;border-radius:20px;
+  padding:14px;box-shadow:0 20px 60px rgba(0,0,0,.28)
+}
+.zfood-scanner-head{
+  display:flex;align-items:center;justify-content:space-between;
+  gap:10px;margin-bottom:10px
+}
+.zfood-scanner-head strong{font-size:13px;letter-spacing:.3px;color:#17202a}
+.zfood-scanner-close{
+  width:34px;height:34px;border:0;border-radius:10px;
+  background:#f3f4f6;font-size:22px;line-height:1;cursor:pointer;color:#4b5563
+}
+#zfoodScannerReader{
+  width:300px;height:160px;max-width:100%;margin:0 auto;
+  overflow:hidden;border-radius:14px;background:#111
+}
+#zfoodScannerReader video{
+  width:100%!important;height:100%!important;object-fit:cover!important;
+  object-position:center!important;display:block
+}
+#zfoodScannerStatus{
+  text-align:center;font-size:11px;color:#74808c;
+  margin:10px 2px 12px;min-height:16px
+}
+.zfood-scanner-actions{display:flex;gap:8px}
+.zfood-scanner-action{
+  flex:1;height:40px;border:0;border-radius:11px;
+  font-weight:700;cursor:pointer
+}
+.zfood-scanner-action.cancel{background:#f1f3f5;color:#4b5563}
+@media(max-width:380px){
+  .zfood-scanner-card{padding:12px}
+  #zfoodScannerReader{width:100%;height:170px}
+}
+&lt;/style&gt;
+
 &lt;/head&gt;
 
 &lt;body&gt;
@@ -12832,7 +12973,7 @@ input{
     &lt;div class="master-loading-spinner"&gt;&lt;/div&gt;
     &lt;div class="master-loading-title" id="masterLoadingTitle"&gt;Menyiapkan Z-FOOD&lt;/div&gt;
     &lt;div class="master-loading-message" id="masterLoadingMessage"&gt;Sedang mengambil data produk dari MASTER...&lt;/div&gt;
-    &lt;button type="button" id="masterRetryButton" onclick="loadMaster(true)"&gt;Coba Lagi&lt;/button&gt;
+    &lt;button type="button" id="masterRetryButton" onclick="loadMaster()"&gt;Coba Lagi&lt;/button&gt;
   &lt;/div&gt;
 &lt;/div&gt;
 
@@ -12843,9 +12984,9 @@ input{
 &lt;div id="dashboardPage" class="dashboard"&gt;
   &lt;div class="dashboard-shell"&gt;
     &lt;div class="dashboard-top"&gt;
-      &lt;div class="dashboard-badge"&gt;Z-FOOD SYSTEM&lt;/div&gt;
+      &lt;div class="dashboard-badge"&gt;FORM Z-FOOD BSD&lt;/div&gt;
       &lt;h1 class="dashboard-title"&gt;Z-&lt;span&gt;FOOD&lt;/span&gt;&lt;/h1&gt;
-      &lt;p class="dashboard-subtitle"&gt;Form Z-Food BSD&lt;/p&gt;
+      &lt;p class="dashboard-subtitle"&gt;RM KEMANG&lt;/p&gt;
     &lt;/div&gt;
 
     &lt;div class="dashboard-grid"&gt;
@@ -12903,24 +13044,6 @@ input{
       &lt;label for="zfoodDate"&gt;TANGGAL&lt;/label&gt;
       &lt;input id="zfoodDate" type="date"&gt;
     &lt;/div&gt;
-
-  &lt;/div&gt;
-
-
-  &lt;!-- =========================
-       MASTER STATUS
-  ========================== --&gt;
-
-  &lt;div
-    id="masterStatus"
-    class="status"
-  &gt;
-
-    &lt;span class="dot"&gt;&lt;/span&gt;
-
-    &lt;span id="masterStatusText"&gt;
-      Memuat MASTER...
-    &lt;/span&gt;
 
   &lt;/div&gt;
 
@@ -13329,6 +13452,8 @@ input{
   &lt;/div&gt;
 &lt;/div&gt;
 
+&lt;script src="https://unpkg.com/@zxing/library@latest"&gt;&lt;/script&gt;
+
 &lt;div id="zfoodScannerModal" aria-hidden="true"&gt;
   &lt;div class="zfood-scanner-card"&gt;
     &lt;div class="zfood-scanner-head"&gt;
@@ -13337,63 +13462,156 @@ input{
     &lt;/div&gt;
     &lt;div id="zfoodScannerReader"&gt;&lt;/div&gt;
     &lt;div id="zfoodScannerStatus"&gt;Arahkan kamera ke barcode produk&lt;/div&gt;
-    &lt;button type="button" class="zfood-scanner-cancel" onclick="closeZfoodScanner()"&gt;BATAL&lt;/button&gt;
+    &lt;div class="zfood-scanner-actions"&gt;
+      &lt;button type="button" class="zfood-scanner-action cancel" onclick="closeZfoodScanner()"&gt;BATAL&lt;/button&gt;
+    &lt;/div&gt;
   &lt;/div&gt;
 &lt;/div&gt;
 
 &lt;script&gt;
 
-let zfoodScannerInstance=null;
+
+
+/* =========================================================
+   Z-FOOD BARCODE SCANNER - ZXing
+   Dipakai untuk setiap produk di PRODUK AWAL dan PRODUK AKHIR.
+========================================================= */
+let zfoodScannerReader=null;
+let zfoodScannerControls=null;
 let zfoodScannerTarget=null;
 let zfoodScannerBusy=false;
+
 async function openZfoodScanner(button){
-  if(typeof ZXing==='undefined'){alert('Library ZXing belum berhasil dimuat. Periksa koneksi internet.');return;}
-  zfoodScannerTarget=button.closest('.search')?.querySelector('.search-input');
-  if(!zfoodScannerTarget)return;
+  const field=button ? button.closest('.zfood-scan-field') : null;
+  const input=field ? field.querySelector('.search-input') : null;
   const modal=document.getElementById('zfoodScannerModal');
   const status=document.getElementById('zfoodScannerStatus');
-  const reader=document.getElementById('zfoodScannerReader');
-  modal.classList.add('show');modal.setAttribute('aria-hidden','false');
-  document.body.style.overflow='hidden';status.textContent='Mengaktifkan kamera...';zfoodScannerBusy=false;
-  try{
+  const readerBox=document.getElementById('zfoodScannerReader');
+  if(!input||!modal||!status||!readerBox)return;
+
+  zfoodScannerTarget=input;
+  modal.classList.add('on');
+  modal.setAttribute('aria-hidden','false');
+  status.textContent='Menyiapkan kamera...';
+
+  if(zfoodScannerReader||zfoodScannerControls){
     await closeZfoodScanner(false);
+    zfoodScannerTarget=input;
+    modal.classList.add('on');
+    modal.setAttribute('aria-hidden','false');
+  }
+
+  if(typeof ZXing==='undefined'||!ZXing.BrowserMultiFormatReader){
+    status.textContent='Library ZXing belum tersedia. Silakan input barcode manual.';
+    return;
+  }
+
+  zfoodScannerBusy=false;
+  readerBox.innerHTML='';
+  const video=document.createElement('video');
+  video.setAttribute('playsinline','true');
+  video.setAttribute('autoplay','true');
+  video.setAttribute('muted','true');
+  video.muted=true;
+  video.style.cssText='width:100%;height:100%;object-fit:cover;display:block;';
+  readerBox.appendChild(video);
+
+  try{
     const hints=new Map();
-    hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS,[ZXing.BarcodeFormat.QR_CODE,ZXing.BarcodeFormat.CODE_128,ZXing.BarcodeFormat.CODE_39,ZXing.BarcodeFormat.CODE_93,ZXing.BarcodeFormat.EAN_13,ZXing.BarcodeFormat.EAN_8,ZXing.BarcodeFormat.UPC_A,ZXing.BarcodeFormat.UPC_E,ZXing.BarcodeFormat.ITF]);
-    const scanner=new ZXing.BrowserMultiFormatReader(hints,250);zfoodScannerInstance=scanner;
-    await scanner.decodeFromConstraints({video:{facingMode:{ideal:'environment'}}},reader,(result,error)=&gt;{
-      if(!result||zfoodScannerBusy)return;
-      const value=String(result.getText?.()||'').trim();if(!value)return;
-      zfoodScannerBusy=true;
-      if(zfoodScannerTarget){zfoodScannerTarget.value=value;zfoodScannerTarget.dispatchEvent(new Event('input',{bubbles:true}));zfoodScannerTarget.focus();}
-      status.textContent='Barcode berhasil dibaca';setTimeout(()=&gt;closeZfoodScanner(),250);
-    });
-    setTimeout(tuneZfoodScannerCamera,700);status.textContent='Arahkan kamera ke barcode produk';
+    const formats=[
+      ZXing.BarcodeFormat.QR_CODE,
+      ZXing.BarcodeFormat.CODE_128,
+      ZXing.BarcodeFormat.CODE_39,
+      ZXing.BarcodeFormat.CODE_93,
+      ZXing.BarcodeFormat.EAN_13,
+      ZXing.BarcodeFormat.EAN_8,
+      ZXing.BarcodeFormat.UPC_A,
+      ZXing.BarcodeFormat.UPC_E,
+      ZXing.BarcodeFormat.ITF
+    ].filter(Boolean);
+    hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS,formats);
+    hints.set(ZXing.DecodeHintType.TRY_HARDER,true);
+
+    zfoodScannerReader=new ZXing.BrowserMultiFormatReader(hints,250);
+    status.textContent='Arahkan barcode ke kamera';
+
+    zfoodScannerControls=await zfoodScannerReader.decodeFromVideoDevice(
+      undefined,
+      video,
+      (result,error)=>{
+        if(!result||zfoodScannerBusy)return;
+        zfoodScannerBusy=true;
+        const decodedText=String(result.getText()||'').trim();
+        const target=zfoodScannerTarget;
+        if(target){
+          target.value=decodedText;
+          target.dispatchEvent(new Event('input',{bubbles:true}));
+          target.focus();
+        }
+        status.textContent='Barcode berhasil dibaca';
+        setTimeout(()=>closeZfoodScanner(),180);
+      }
+    );
+
+    // Autofocus berkelanjutan dan zoom hingga 2x jika didukung kamera.
+    const applyZfoodCameraSettings=async()=>{
+      try{
+        const track=video.srcObject?.getVideoTracks?.()[0];
+        if(!track)return;
+        const caps=track.getCapabilities?.()||{};
+        const advanced={};
+        if(Array.isArray(caps.focusMode)&&caps.focusMode.includes('continuous')){
+          advanced.focusMode='continuous';
+        }
+        if(caps.zoom){
+          const min=Number(caps.zoom.min??1);
+          const max=Number(caps.zoom.max??min);
+          const target=Math.min(max,Math.max(min,2.0));
+          if(target>min)advanced.zoom=target;
+        }
+        if(Object.keys(advanced).length){
+          await track.applyConstraints({advanced:[advanced]});
+        }
+      }catch(err){
+        console.log('Pengaturan kamera Z-FOOD tidak didukung:',err);
+      }
+    };
+    setTimeout(applyZfoodCameraSettings,700);
+
   }catch(err){
-    console.error('Z-FOOD ZXing scanner error:',err);
-    status.textContent='Kamera tidak dapat dibuka. Izinkan akses kamera atau gunakan input manual.';
-    await closeZfoodScanner(false);modal.classList.add('show');modal.setAttribute('aria-hidden','false');
+    console.error('ZXing Z-FOOD scanner error:',err);
+    status.textContent='Kamera tidak dapat dibuka. Izinkan akses kamera atau input manual.';
+    try{zfoodScannerControls?.stop();}catch(e){}
+    try{zfoodScannerReader?.reset();}catch(e){}
+    zfoodScannerControls=null;
+    zfoodScannerReader=null;
   }
 }
-async function tuneZfoodScannerCamera(){
-  try{
-    const video=document.querySelector('#zfoodScannerReader video');
-    const track=video?.srcObject?.getVideoTracks?.()[0];if(!track)return;
-    const caps=track.getCapabilities?.()||{},advanced={};
-    if(caps.focusMode&amp;&amp;caps.focusMode.includes('continuous'))advanced.focusMode='continuous';
-    if(caps.zoom){const min=Number(caps.zoom.min||1),max=Number(caps.zoom.max||min);advanced.zoom=Math.max(min,Math.min(2,max));}
-    if(Object.keys(advanced).length)await track.applyConstraints({advanced:[advanced]});
-  }catch(e){console.warn('Camera tuning unavailable',e);}
-}
-async function closeZfoodScanner(hide=true){
-  try{
-    if(zfoodScannerInstance){zfoodScannerInstance.reset();zfoodScannerInstance=null;}
-    const reader=document.getElementById('zfoodScannerReader');
-    if(reader){reader.querySelectorAll('video').forEach(v=&gt;{try{v.srcObject?.getTracks?.().forEach(t=&gt;t.stop());}catch(e){}});reader.innerHTML='';}
-  }catch(e){}
-  if(hide){const modal=document.getElementById('zfoodScannerModal');if(modal){modal.classList.remove('show');modal.setAttribute('aria-hidden','true');}document.body.style.overflow='';zfoodScannerTarget=null;}
-}
-document.addEventListener('keydown',e=&gt;{if(e.key==='Escape')closeZfoodScanner();});
 
+async function closeZfoodScanner(hide=true){
+  const modal=document.getElementById('zfoodScannerModal');
+  const readerBox=document.getElementById('zfoodScannerReader');
+  if(hide&&modal){
+    modal.classList.remove('on');
+    modal.setAttribute('aria-hidden','true');
+  }
+  try{if(zfoodScannerControls)zfoodScannerControls.stop();}catch(e){}
+  try{if(zfoodScannerReader)zfoodScannerReader.reset();}catch(e){}
+  zfoodScannerControls=null;
+  zfoodScannerReader=null;
+  zfoodScannerTarget=null;
+  zfoodScannerBusy=false;
+  if(readerBox)readerBox.innerHTML='';
+}
+
+window.openZfoodScanner=openZfoodScanner;
+window.closeZfoodScanner=closeZfoodScanner;
+
+document.addEventListener('keydown',function(event){
+  if(event.key==='Escape'&&document.getElementById('zfoodScannerModal')?.classList.contains('on')){
+    closeZfoodScanner();
+  }
+});
 
 
 /* =========================================================
@@ -13472,17 +13690,8 @@ const APPS_SCRIPT_URL = '__ZFOOD_API_URL__';
 ========================================================= */
 
 let MASTER_DATA = [];
+let MASTER_SEARCH_DATA = [];
 let masterLoaded = false;
-
-// Cache browser khusus Z-FOOD dan API yang sedang digunakan.
-const MASTER_CACHE_NAMESPACE =
-  String(window.APP_CACHE_PREFIX || 'default') + '_' +
-  String(APPS_SCRIPT_URL || '').replace(/[^a-zA-Z0-9]/g, '_').slice(-100);
-const MASTER_CACHE_KEY = `ZFOOD_${MASTER_CACHE_NAMESPACE}_MASTER_CACHE_V3`;
-const MASTER_CACHE_TIME_KEY = `ZFOOD_${MASTER_CACHE_NAMESPACE}_MASTER_CACHE_TIME_V3`;
-const MASTER_CACHE_MAX_AGE = 30 * 60 * 1000; // 30 menit
-
-let masterLoadInProgress = false;
 
 
 /* =========================================================
@@ -13501,92 +13710,34 @@ let pendingTransactionKey = '';
    LOAD MASTER
 ========================================================= */
 
-function loadMaster(forceRefresh){
+function loadMaster(){
 
-  if(masterLoadInProgress) return;
+  masterLoaded = false;
+  MASTER_DATA = [];
+  MASTER_SEARCH_DATA = [];
 
-  let hasFreshCache = false;
-
-  // Cache yang masih berumur maksimal 30 menit langsung digunakan.
-  // Cache kedaluwarsa tidak dipakai sebagai data aktif.
-  if(!forceRefresh){
-    try{
-      const cached = localStorage.getItem(MASTER_CACHE_KEY);
-      const cachedTime = Number(
-        localStorage.getItem(MASTER_CACHE_TIME_KEY) || 0
-      );
-      const cacheAge = Date.now() - cachedTime;
-
-      if(
-        cached &amp;&amp;
-        cachedTime &gt; 0 &amp;&amp;
-        cacheAge &gt;= 0 &amp;&amp;
-        cacheAge &lt; MASTER_CACHE_MAX_AGE
-      ){
-        const parsed = JSON.parse(cached);
-
-        if(Array.isArray(parsed) &amp;&amp; parsed.length &gt; 0){
-          MASTER_DATA = parsed;
-          masterLoaded = true;
-          hasFreshCache = true;
-
-          setMasterStatus(
-            'MASTER SIAP • ' + MASTER_DATA.length + ' produk',
-            'ready'
-          );
-          ensureInitialProducts();
-        }
-      }
-    }catch(cacheError){
-      console.warn('Cache MASTER tidak dapat digunakan:', cacheError);
-    }
-  }
-
-  // Tanpa cache yang masih valid, tampilkan layar loading.
-  if(!hasFreshCache){
-    masterLoaded = false;
-    MASTER_DATA = [];
-    setMasterStatus(
-      'Sedang mengambil data produk dari MASTER...',
-      'loading'
-    );
-  }
-
-  masterLoadInProgress = true;
+  setMasterStatus('Sedang mengambil data produk dari MASTER...', 'loading');
 
   const callbackName =
     'zfoodMaster_' + Date.now() + '_' +
     Math.floor(Math.random() * 10000);
 
+  let finished = false;
   const script = document.createElement('script');
   script.async = true;
-  let finished = false;
 
   function finish(){
     if(finished) return;
     finished = true;
-    clearTimeout(timeoutId);
+    if(timeoutId) clearTimeout(timeoutId);
     cleanupJSONP(callbackName);
     if(script.parentNode) script.parentNode.removeChild(script);
-    masterLoadInProgress = false;
   }
 
   const timeoutId = setTimeout(function(){
     if(finished) return;
-
-    if(!hasFreshCache){
-      masterLoaded = false;
-      setMasterStatus(
-        'Waktu tunggu habis saat membaca MASTER. Periksa koneksi lalu coba lagi.',
-        'error'
-      );
-    }else{
-      setMasterStatus(
-        'MASTER SIAP • ' + MASTER_DATA.length + ' produk (cache)',
-        'ready'
-      );
-    }
-
+    masterLoaded = false;
+    setMasterStatus('Waktu tunggu habis saat membaca MASTER. Periksa koneksi lalu coba lagi.', 'error');
     finish();
   }, 30000);
 
@@ -13597,55 +13748,44 @@ function loadMaster(forceRefresh){
       if(
         !response ||
         response.success !== true ||
-        !Array.isArray(response.data) ||
-        response.data.length === 0
+        !Array.isArray(response.data)
       ){
         throw new Error(
-          response &amp;&amp; response.error
+          response && response.error
             ? response.error
-            : 'Data MASTER kosong atau tidak valid.'
+            : 'Data MASTER tidak valid.'
         );
       }
 
       MASTER_DATA = response.data;
+
+      MASTER_SEARCH_DATA = MASTER_DATA.map(function(item){
+        const nama = String(item.nama || '').trim().toLowerCase();
+        return {
+          item: item,
+          artikel: String(item.artikel || '').trim().toLowerCase(),
+          barcode: String(item.barcode || '').trim().toLowerCase(),
+          nama: nama,
+          namaWords: nama ? nama.split(/\s+/) : []
+        };
+      });
+
       masterLoaded = true;
-
-      try{
-        localStorage.setItem(
-          MASTER_CACHE_KEY,
-          JSON.stringify(MASTER_DATA)
-        );
-        localStorage.setItem(
-          MASTER_CACHE_TIME_KEY,
-          String(Date.now())
-        );
-      }catch(cacheError){
-        console.warn('Gagal menyimpan cache MASTER:', cacheError);
-      }
-
-      setMasterStatus(
-        'MASTER SIAP • ' + MASTER_DATA.length + ' produk',
-        'ready'
-      );
-
       ensureInitialProducts();
 
-    }catch(error){
-      console.error('[Z-FOOD] Gagal memuat MASTER:', error);
+      console.info(
+        '[Z-FOOD] MASTER berhasil dimuat:',
+        MASTER_DATA.length,
+        'produk'
+      );
 
-      if(!hasFreshCache){
-        masterLoaded = false;
-        setMasterStatus(
-          'Gagal memuat MASTER: ' + error.message,
-          'error'
-        );
-      }else{
-        // Cache yang masih valid tetap dapat dipakai jika refresh API gagal.
-        setMasterStatus(
-          'MASTER SIAP • ' + MASTER_DATA.length + ' produk (cache)',
-          'ready'
-        );
-      }
+      // Tutup layar loading dan langsung tampilkan halaman Z-FOOD.
+      setMasterStatus('', 'ready');
+
+    }catch(error){
+      console.error('[Z-FOOD] Gagal memproses MASTER:', error);
+      masterLoaded = false;
+      setMasterStatus('Gagal memuat MASTER: ' + error.message, 'error');
 
     }finally{
       finish();
@@ -13654,36 +13794,18 @@ function loadMaster(forceRefresh){
 
   script.onerror = function(){
     if(finished) return;
-
-    if(!hasFreshCache){
-      masterLoaded = false;
-      setMasterStatus(
-        'Gagal terhubung ke API MASTER. Periksa koneksi lalu coba lagi.',
-        'error'
-      );
-    }else{
-      // Kegagalan refresh tidak mematikan data cache yang masih valid.
-      setMasterStatus(
-        'MASTER SIAP • ' + MASTER_DATA.length + ' produk (cache)',
-        'ready'
-      );
-    }
-
+    masterLoaded = false;
+    setMasterStatus('Gagal terhubung ke API MASTER. Periksa koneksi lalu coba lagi.', 'error');
     finish();
   };
 
   script.src =
     APPS_SCRIPT_URL +
     '?callback=' + encodeURIComponent(callbackName) +
-    '&amp;_=' + Date.now();
+    '&_=' + Date.now();
 
   document.body.appendChild(script);
 }
-
-/*
-  Pastikan produk awal dan akhir hanya dibuat
-  sekali setelah MASTER tersedia.
-*/
 
 function ensureInitialProducts(){
 
@@ -13733,21 +13855,11 @@ function cleanupJSONP(name){
    MASTER STATUS
 ========================================================= */
 
-function setMasterStatus(text, state){
+function setMasterStatus(message, state){
 
-  const box = document.getElementById('masterStatus');
-  const label = document.getElementById('masterStatusText');
   const overlay = document.getElementById('masterLoadingOverlay');
   const title = document.getElementById('masterLoadingTitle');
   const detail = document.getElementById('masterLoadingMessage');
-
-  if(label) label.textContent = text || '';
-
-  if(box){
-    box.classList.remove('ready','error');
-    if(state === 'ready') box.classList.add('ready');
-    if(state === 'error') box.classList.add('error');
-  }
 
   if(!overlay) return;
 
@@ -13756,21 +13868,21 @@ function setMasterStatus(text, state){
   if(state === 'loading'){
     overlay.style.display = 'flex';
     if(title) title.textContent = 'Menyiapkan Z-FOOD';
-    if(detail) detail.textContent = text || 'Sedang mengambil data produk dari MASTER...';
+    if(detail) detail.textContent = message || 'Sedang mengambil data produk dari MASTER...';
     return;
   }
 
   if(state === 'error'){
     overlay.style.display = 'flex';
     overlay.classList.add('error');
-    if(title) title.textContent = 'MASTER belum berhasil dimuat';
-    if(detail) detail.textContent = text || 'Periksa koneksi internet, lalu coba lagi.';
+    if(title) title.textContent = 'Data MASTER belum berhasil dimuat';
+    if(detail) detail.textContent = message || 'Periksa koneksi internet, lalu coba lagi.';
     return;
   }
 
-  if(state === 'ready'){
-    overlay.style.display = 'none';
-  }
+  // MASTER sudah siap: hilangkan overlay, tanpa menampilkan
+  // status MASTER lama tidak ditampilkan.
+  overlay.style.display = 'none';
 }
 
 /* =========================================================
@@ -13913,21 +14025,33 @@ function addProduct(type,options){
       PRODUK ${counter}
     &lt;/div&gt;
 
-    &lt;div class="search"&gt;
+    &lt;div class="search zfood-scan-field"&gt;
 
       &lt;label class="search-label"&gt;
         ARTICLE / BARCODE / NAMA BARANG
       &lt;/label&gt;
 
-      &lt;input
-        type="text"
-        class="search-input"
-        placeholder="Ketik atau Scan"
-        autocomplete="off"
-        inputmode="search"
-        oninput="searchProduct(this)"
-      &gt;
-      &lt;button type="button" class="zfood-scan-btn" onclick="openZfoodScanner(this)" aria-label="Scan barcode"&gt;▦&lt;/button&gt;
+      &lt;div class="zfood-input-wrap"&gt;
+
+        &lt;input
+          type="text"
+          class="search-input"
+          placeholder="Ketik atau Scan"
+          autocomplete="off"
+          inputmode="search"
+          oninput="searchProduct(this)"
+        &gt;
+
+        &lt;button type="button" class="zfood-scan-btn"
+          onclick="openZfoodScanner(this)"
+          aria-label="Scan barcode" title="Scan barcode"&gt;
+          &lt;svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"&gt;
+            &lt;path d="M4 7V5a1 1 0 0 1 1-1h2M17 4h2a1 1 0 0 1 1 1v2M20 17v2a1 1 0 0 1-1 1h-2M7 20H5a1 1 0 0 1-1-1v-2"/&gt;
+            &lt;path d="M8 8h8v8H8z"/&gt;
+          &lt;/svg&gt;
+        &lt;/button&gt;
+
+      &lt;/div&gt;
 
       &lt;div class="product-name-display"&gt;&lt;/div&gt;
 
@@ -14064,153 +14188,51 @@ function renumberProducts(type){
 function searchProduct(input){
 
   if(!masterLoaded){
-
     return;
-
   }
 
+  const product = input.closest('.product');
+  if(!product) return;
 
-  const product =
-    input.closest('.product');
+  const dropdown = product.querySelector('.dropdown');
+  const keyword = String(input.value || '').trim().toLowerCase();
 
-
-  if(!product){
-
+  if(keyword === ''){
+    dropdown.classList.remove('show');
     return;
-
   }
 
+  const searchParts = keyword
+    .split(/\s+/)
+    .map(function(part){ return part.replace(/\*/g, '').trim(); })
+    .filter(Boolean);
 
-  const dropdown =
-    product.querySelector(
-      '.dropdown'
-    );
+  const results = [];
 
+  // Loop biasa lebih ringan daripada filter + membuat ulang string
+  // untuk setiap produk. Berhenti segera setelah 30 hasil ditemukan.
+  for(let i = 0; i < MASTER_SEARCH_DATA.length; i++){
+    const row = MASTER_SEARCH_DATA[i];
 
-  const keyword =
-    String(
-      input.value || ''
-    )
-      .trim()
-      .toLowerCase();
+    const namaMatch =
+      searchParts.length > 0 &&
+      searchParts.every(function(part, index){
+        return row.namaWords[index] &&
+          row.namaWords[index].startsWith(part);
+      });
 
-
-  /*
-    Kalau kosong,
-    tampilkan maksimal 30 MASTER pertama.
-  */
-
-  let results;
-
-
-if(keyword === ''){
-
-  dropdown.classList.remove('show');
-  return;
-
-}else{
-
-  results =
-    MASTER_DATA.filter(
-          
-      function(item){
-
-          const article =
-            String(
-              item.artikel || ''
-            ).toLowerCase();
-
-          const barcode =
-            String(
-              item.barcode || ''
-            ).toLowerCase();
-
-          const nama =
-            String(
-              item.nama || ''
-            ).toLowerCase();
-
-
-          /*
-            PENCARIAN NAMA BARANG FLEXIBLE
-
-            Contoh MASTER:
-            CHICKEN BLACK PEPPER RTC
-
-            Ketik:
-            C BL P
-
-            Maka:
-            C  -&gt; CHICKEN
-            BL -&gt; BLACK
-            P  -&gt; PEPPER
-
-            Kata tambahan seperti RTC tetap boleh ada.
-          */
-
-          const searchParts =
-            keyword
-              .split(/\s+/)
-              .map(function(part){
-                return part
-                  .replace(/\*/g, '')
-                  .trim();
-              })
-              .filter(Boolean);
-
-          const namaWords =
-            nama
-              .split(/\s+/)
-              .filter(Boolean);
-
-          const namaMatch =
-            searchParts.length &gt; 0 &amp;&amp;
-            searchParts.every(
-              function(part, index){
-
-                const partLower =
-                  part.toLowerCase();
-
-                /*
-                  Kata harus berurutan.
-                  Contoh:
-                  C BL P
-                  CH BL PEP
-                  C* BL* P*
-                */
-
-                return (
-                  namaWords[index] &amp;&amp;
-                  namaWords[index]
-                    .toLowerCase()
-                    .startsWith(partLower)
-                );
-
-              }
-            );
-
-          return (
-            article.includes(keyword) ||
-            barcode.includes(keyword) ||
-            nama.includes(keyword) ||
-            namaMatch
-          );
-
-        }
-      ).slice(
-        0,
-        30
-      );
-
+    if(
+      row.artikel.includes(keyword) ||
+      row.barcode.includes(keyword) ||
+      row.nama.includes(keyword) ||
+      namaMatch
+    ){
+      results.push(row.item);
+      if(results.length >= 30) break;
+    }
   }
 
-
-  renderDropdown(
-    dropdown,
-    results,
-    input
-  );
-
+  renderDropdown(dropdown, results, input);
 }
 
 
@@ -17677,33 +17699,11 @@ header.top &gt; button.icon:active{
 .scanner-card{width:min(100%,360px);background:#fff;border-radius:20px;padding:14px;box-shadow:0 20px 60px rgba(0,0,0,.28)}
 .scanner-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
 .scanner-head b{font-size:14px;letter-spacing:.4px;color:#17202a}
-.scanner-close{
-  width:34px;
-  height:34px;
-  border:0;
-  border-radius:10px;
-  background:#f3f4f6;
-  font-size:22px;
-  line-height:1;
-  cursor:pointer;
-  color:#4b5563
-}
-
+.scanner-close{width:34px;height:34px;border:0;border-radius:10px;background:#f3f4f6;font-size:22px;line-height:1;cursor:pointer;color:#4b5563}
 #scannerReader{width:300px;height:160px;max-width:100%;margin:0 auto;overflow:hidden;border-radius:14px;background:#111}
 #scannerReader video{width:100%!important;height:100%!important;object-fit:cover!important}
-
-#scannerStatus{
-  text-align:center;
-  font-size:11px;
-  color:#74808c;
-  margin:10px 2px 12px;
-  min-height:16px
-}
-
-.scanner-actions{
-  display:flex;
-  gap:8px
-}
+#scannerStatus{text-align:center;font-size:11px;color:#74808c;margin:10px 2px 12px;min-height:16px}
+.scanner-actions{display:flex;gap:8px}
 .scanner-action{flex:1;height:40px;border:0;border-radius:11px;font-weight:700;cursor:pointer}
 .scanner-action.cancel{background:#f1f3f5;color:#4b5563}
 .scanner-action.close{background:#17202a;color:#fff}
@@ -17767,7 +17767,7 @@ body&gt;.app .sup,body&gt;.app .date{color:#7d8692!important;}
  .hist .actions button{min-height:28px!important;padding:4px 8px!important}
 }
 &lt;/style&gt;
-&lt;/head&gt;&lt;body&gt;&lt;script src="https://unpkg.com/@zxing/library@0.21.3/umd/index.min.js"&gt;&lt;/script&gt;
+&lt;/head&gt;&lt;body&gt;&lt;script src="https://unpkg.com/@zxing/library@latest"&gt;&lt;/script&gt;
 &lt;div class="app"&gt;&lt;header class="top"&gt;&lt;div class="brand"&gt;&lt;div class="logo"&gt;📝&lt;/div&gt;&lt;div&gt;&lt;b&gt;INCOMING&lt;/b&gt;&lt;small&gt;RANCH MARKET KEMANG&lt;/small&gt;&lt;/div&gt;&lt;/div&gt;&lt;button class="icon" onclick="page('home')"&gt;⌂&lt;/button&gt;&lt;/header&gt;&lt;main id="home" class="page on"&gt;&lt;div class="hero"&gt;&lt;div class="ey"&gt;INCOMING CONTROL&lt;/div&gt;&lt;h2&gt;FORM INCOMING&lt;/h2&gt;&lt;p&gt;BSD RM KEMANG&lt;/p&gt;&lt;/div&gt;&lt;div class="grid"&gt;&lt;button class="menu" onclick="newForm()"&gt;&lt;div class="ico"&gt;＋&lt;/div&gt;&lt;b&gt;Incoming Baru&lt;/b&gt;&lt;span&gt;Input penerimaan&lt;/span&gt;&lt;/button&gt;&lt;button class="menu" onclick="page('history');render()"&gt;&lt;div class="ico"&gt;≡&lt;/div&gt;&lt;b&gt;Riwayat&lt;/b&gt;&lt;span&gt;Per lembar / PO&lt;/span&gt;&lt;/button&gt;&lt;button class="menu" onclick="openSpreadsheetMenu()"&gt;&lt;div class="ico"&gt;▥&lt;/div&gt;&lt;b&gt;Spreadsheet&lt;/b&gt;&lt;span&gt;Buka file bulanan&lt;/span&gt;&lt;/button&gt;&lt;/div&gt;&lt;/main&gt;
 
 &lt;main id="typeGate" class="page"&gt;
@@ -18061,7 +18061,7 @@ function ui(){
 }
 
 function incomingProductNameMatchesQuery(name,query){
-  const normalize=text=&gt;String(text||'').toLowerCase()
+  const normalize=text=>String(text||'').toLowerCase()
     .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
     .replace(/[^a-z0-9]+/g,' ').trim().replace(/\s+/g,' ');
   const n=normalize(name),q=normalize(query);
@@ -18070,14 +18070,14 @@ function incomingProductNameMatchesQuery(name,query){
   const queryParts=q.split(' ').filter(Boolean);
   const nameParts=n.split(' ').filter(Boolean);
   if(queryParts.length===1){
-    return nameParts.some(word=&gt;word.startsWith(queryParts[0]));
+    return nameParts.some(word=>word.startsWith(queryParts[0]));
   }
   // Multi-part query must match word prefixes in the same order.
-  // Words may be skipped, e.g. CH P L -&gt; CHICKEN DRUMSTICK PACK LEAN.
+  // Words may be skipped, e.g. CH P L -> CHICKEN DRUMSTICK PACK LEAN.
   let nextNameIndex=0;
   for(const part of queryParts){
-    const index=nameParts.findIndex((word,i)=&gt;i&gt;=nextNameIndex &amp;&amp; word.startsWith(part));
-    if(index&lt;0)return false;
+    const index=nameParts.findIndex((word,i)=>i>=nextNameIndex && word.startsWith(part));
+    if(index<0)return false;
     nextNameIndex=index+1;
   }
   return true;
@@ -18121,7 +18121,7 @@ function search(type,q){
 
   /* Pencarian bebas:
      Produk bisa cari dari A, B, atau C */
-  const f=arr.filter(x=&gt;{
+  const f=arr.filter(x=>{
     if(type==='supplier'){
       return [x[0],x[1],x[2]].filter(Boolean).join(' ').toLowerCase().includes(s);
     }
@@ -18297,7 +18297,7 @@ const historyDateCache={};
 const historyDatePending={};
 let historyDateLoadKey='';
 function invalidateHistoryDateCache(category){
-  Object.keys(historyDateCache).forEach(key=&gt;{if(key.startsWith(category+'|'))delete historyDateCache[key];});
+  Object.keys(historyDateCache).forEach(key=>{if(key.startsWith(category+'|'))delete historyDateCache[key];});
 }
 
 function dateLabelShort(iso){
@@ -18316,23 +18316,23 @@ async function loadAvailableHistoryDates(selectedDate,category){
   const monthKey=parts[0]+'-'+parts[1];
   const key=category+'|'+monthKey;
   historyDateLoadKey=key;
-  const renderChips=(dates)=&gt;{
+  const renderChips=(dates)=>{
     if(historyDateLoadKey!==key)return;
-    if(!dates.length){box.innerHTML='&lt;span style="font-size:9px;color:#8b929d"&gt;Belum ada tanggal terisi pada bulan ini.&lt;/span&gt;';return;}
-    box.innerHTML=dates.map(date=&gt;`&lt;button type="button" data-date="${date}" style="border:1px solid ${date===input.value?'#f28a2e':'#e0e4e9'};background:${date===input.value?'#fff1e3':'#fff'};color:${date===input.value?'#c96a1d':'#4b5563'};border-radius:7px;padding:4px 6px;font-size:9px;font-weight:750;line-height:1.1;min-width:42px" onclick="selectHistoryDate('${date}')"&gt;${dateLabelShort(date)}&lt;/button&gt;`).join('');
+    if(!dates.length){box.innerHTML='<span style="font-size:9px;color:#8b929d">Belum ada tanggal terisi pada bulan ini.</span>';return;}
+    box.innerHTML=dates.map(date=>`<button type="button" data-date="${date}" style="border:1px solid ${date===input.value?'#f28a2e':'#e0e4e9'};background:${date===input.value?'#fff1e3':'#fff'};color:${date===input.value?'#c96a1d':'#4b5563'};border-radius:7px;padding:4px 6px;font-size:9px;font-weight:750;line-height:1.1;min-width:42px" onclick="selectHistoryDate('${date}')">${dateLabelShort(date)}</button>`).join('');
   };
   if(Object.prototype.hasOwnProperty.call(historyDateCache,key)){
     renderChips(historyDateCache[key]);
     return historyDateCache[key];
   }
   if(historyDatePending[key]){
-    box.innerHTML='&lt;span style="font-size:9px;color:#8b929d"&gt;Memuat tanggal tersimpan...&lt;/span&gt;';
+    box.innerHTML='<span style="font-size:9px;color:#8b929d">Memuat tanggal tersimpan...</span>';
     const dates=await historyDatePending[key];
     renderChips(dates||[]);
     return dates||[];
   }
-  box.innerHTML='&lt;span style="font-size:9px;color:#8b929d"&gt;Memuat tanggal...&lt;/span&gt;';
-  historyDatePending[key]=(async()=&gt;{
+  box.innerHTML='<span style="font-size:9px;color:#8b929d">Memuat tanggal...</span>';
+  historyDatePending[key]=(async()=>{
     const result=await apiGet({action:'historyDates',category,bulan:monthKey});
     const dates=Array.isArray(result.dates)?result.dates:[];
     dates.sort();
@@ -18347,7 +18347,7 @@ async function loadAvailableHistoryDates(selectedDate,category){
   }catch(err){
     delete historyDatePending[key];
     console.warn('Gagal memuat daftar tanggal riwayat:',err);
-    if(historyDateLoadKey===key)box.innerHTML='&lt;span style="font-size:11px;color:#8b929d"&gt;Tanggal terisi belum dapat dimuat.&lt;/span&gt;';
+    if(historyDateLoadKey===key)box.innerHTML='<span style="font-size:11px;color:#8b929d">Tanggal terisi belum dapat dimuat.</span>';
     return [];
   }
 }
@@ -18359,7 +18359,7 @@ async function changeHistoryMonth(monthValue){
   const dateInput=document.getElementById('hd');
   if(dateInput)dateInput.value=monthStart;
   const dates=await loadAvailableHistoryDates(monthStart,historyType);
-  if(dateInput &amp;&amp; dates &amp;&amp; dates.length)dateInput.value=dates[0];
+  if(dateInput && dates && dates.length)dateInput.value=dates[0];
   render();
 }
 
@@ -18656,7 +18656,7 @@ function toast(t){
   const x=document.getElementById('toast');x.textContent=t;x.classList.add('on');clearTimeout(window.tt);window.tt=setTimeout(()=&gt;x.classList.remove('on'),2500);
 }
 
-let scannerInstance=null,scannerTargetId=null,scannerBusy=false;
+let scannerReader=null,scannerControls=null,scannerTargetId=null,scannerBusy=false;
 
 function setScannerValue(targetId,value){
   const input=document.getElementById(targetId);
@@ -18666,106 +18666,120 @@ function setScannerValue(targetId,value){
   input.focus();
 }
 
-function incomingZXingFormats(){
-  const B=window.ZXing?.BarcodeFormat;
-  return B ? [
-    B.QR_CODE,B.CODE_128,B.CODE_39,B.CODE_93,
-    B.EAN_13,B.EAN_8,B.UPC_A,B.UPC_E,B.ITF
-  ] : [];
-}
-
-async function tuneScannerCamera(video,zoom=2){
-  try{
-    const track=video?.srcObject?.getVideoTracks?.()[0];
-    if(!track)return;
-    const caps=track.getCapabilities?.()||{};
-    const advanced={};
-    if(Array.isArray(caps.focusMode)&amp;&amp;caps.focusMode.includes('continuous')){
-      advanced.focusMode='continuous';
-    }
-    if(caps.zoom){
-      const min=Number(caps.zoom.min||1);
-      const max=Number(caps.zoom.max||min);
-      advanced.zoom=Math.min(max,Math.max(min,zoom));
-    }
-    if(Object.keys(advanced).length)await track.applyConstraints({advanced:[advanced]});
-  }catch(e){console.log('Camera adjustment:',e);}
-}
-
 async function openScanner(targetId){
-  const target=document.getElementById(targetId);
-  if(!target)return;
+  if(!document.getElementById(targetId))return;
   scannerTargetId=targetId;
-
   const modal=document.getElementById('scannerModal');
   const status=document.getElementById('scannerStatus');
-  const reader=document.getElementById('scannerReader');
-  if(!modal||!status||!reader)return;
+  const readerBox=document.getElementById('scannerReader');
+  if(!modal||!status||!readerBox)return;
 
   modal.classList.add('on');
   modal.setAttribute('aria-hidden','false');
-  status.textContent='Arahkan barcode ke kotak putih';
+  status.textContent='Menyiapkan kamera...';
 
-  if(scannerInstance)await closeScanner(false);
+  if(scannerReader||scannerControls){
+    await closeScanner(false);
+    modal.classList.add('on');
+    modal.setAttribute('aria-hidden','false');
+  }
 
-  if(!window.ZXing?.BrowserMultiFormatReader){
+  if(typeof ZXing==='undefined'||!ZXing.BrowserMultiFormatReader){
     status.textContent='Library ZXing belum tersedia. Silakan input manual.';
     return;
   }
 
   scannerBusy=false;
-  reader.innerHTML='';
+  readerBox.innerHTML='';
   const video=document.createElement('video');
   video.setAttribute('playsinline','true');
   video.setAttribute('autoplay','true');
+  video.setAttribute('muted','true');
   video.muted=true;
-  video.style.cssText='width:100%;height:100%;object-fit:cover;display:block';
-  reader.appendChild(video);
+  video.style.cssText='width:100%;height:100%;object-fit:cover;display:block;';
+  readerBox.appendChild(video);
 
   try{
     const hints=new Map();
-    const formats=incomingZXingFormats();
-    if(formats.length)hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS,formats);
+    const formats=[
+      ZXing.BarcodeFormat.QR_CODE,
+      ZXing.BarcodeFormat.CODE_128,
+      ZXing.BarcodeFormat.CODE_39,
+      ZXing.BarcodeFormat.CODE_93,
+      ZXing.BarcodeFormat.EAN_13,
+      ZXing.BarcodeFormat.EAN_8,
+      ZXing.BarcodeFormat.UPC_A,
+      ZXing.BarcodeFormat.UPC_E,
+      ZXing.BarcodeFormat.ITF
+    ].filter(Boolean);
+    hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS,formats);
     hints.set(ZXing.DecodeHintType.TRY_HARDER,true);
 
-    const scanner=new ZXing.BrowserMultiFormatReader(hints,250);
-    scannerInstance=scanner;
-    await scanner.decodeFromConstraints(
-      {video:{facingMode:{ideal:'environment'}}},
+    scannerReader=new ZXing.BrowserMultiFormatReader(hints,250);
+    status.textContent='Arahkan barcode ke kamera';
+
+    scannerControls=await scannerReader.decodeFromVideoDevice(
+      undefined,
       video,
       (result,error)=&gt;{
         if(!result||scannerBusy)return;
         scannerBusy=true;
-        const decodedText=String(result.getText?.()||'').trim();
-        if(decodedText)setScannerValue(scannerTargetId,decodedText);
-        status.textContent='Berhasil dibaca';
-        setTimeout(()=&gt;closeScanner(),120);
+        const decodedText=String(result.getText()||'').trim();
+        setScannerValue(scannerTargetId,decodedText);
+        status.textContent='Barcode berhasil dibaca';
+        setTimeout(()=&gt;closeScanner(),180);
       }
     );
-    setTimeout(()=&gt;tuneScannerCamera(video,2),700);
+
+    // Terapkan fokus otomatis dan target zoom 2x jika kamera mendukung.
+    const applyIncomingCameraSettings=async()=&gt;{
+      try{
+        const track=video.srcObject?.getVideoTracks?.()[0];
+        if(!track)return;
+        const caps=track.getCapabilities?.()||{};
+        const advanced={};
+        if(Array.isArray(caps.focusMode)&amp;&amp;caps.focusMode.includes('continuous')){
+          advanced.focusMode='continuous';
+        }
+        if(caps.zoom){
+          const min=Number(caps.zoom.min??1);
+          const max=Number(caps.zoom.max??min);
+          const target=Math.min(max,Math.max(min,2.0));
+          if(target&gt;min)advanced.zoom=target;
+        }
+        if(Object.keys(advanced).length){
+          await track.applyConstraints({advanced:[advanced]});
+        }
+      }catch(err){
+        console.log('Pengaturan kamera Incoming tidak didukung:',err);
+      }
+    };
+    setTimeout(applyIncomingCameraSettings,700);
+
   }catch(err){
-    console.error('ZXing scanner error:',err);
+    console.error('ZXing Incoming scanner error:',err);
     status.textContent='Kamera tidak dapat dibuka. Izinkan akses kamera atau input manual.';
-    await closeScanner(false);
-    modal.classList.add('on');
-    modal.setAttribute('aria-hidden','false');
+    try{scannerControls?.stop();}catch(e){}
+    try{scannerReader?.reset();}catch(e){}
+    scannerControls=null;
+    scannerReader=null;
   }
 }
 
 async function closeScanner(hide=true){
   const modal=document.getElementById('scannerModal');
-  const reader=document.getElementById('scannerReader');
+  const readerBox=document.getElementById('scannerReader');
   if(hide&amp;&amp;modal){
     modal.classList.remove('on');
     modal.setAttribute('aria-hidden','true');
   }
-  if(scannerInstance){
-    try{scannerInstance.reset();}catch(e){}
-    scannerInstance=null;
-  }
+  try{if(scannerControls)scannerControls.stop();}catch(e){}
+  try{if(scannerReader)scannerReader.reset();}catch(e){}
+  scannerControls=null;
+  scannerReader=null;
   scannerTargetId=null;
   scannerBusy=false;
-  if(reader)reader.innerHTML='';
+  if(readerBox)readerBox.innerHTML='';
 }
 
 document.getElementById('hd').value=todayLocal();
@@ -18843,14 +18857,19 @@ function closeIncoming(){
   updateOnlineStatus?.();
 }</script>
 
-<script id="password-eye-toggle-script">
-window.togglePassword=function(id,button){
+<script id="password-eye-script">
+function togglePassword(id,button){
   const input=document.getElementById(id);
   if(!input || !button) return;
-  const show=input.type==="password";
-  input.type=show?"text":"password";
-  button.textContent=show?"🙈":"🐵";
-  button.setAttribute("aria-label",show?"Sembunyikan password":"Tampilkan password");
-};
+
+  const showing=input.type==="password";
+  input.type=showing?"text":"password";
+  button.textContent=showing?"🙈":"🐵";
+  button.setAttribute("aria-pressed",showing?"true":"false");
+  button.setAttribute(
+    "aria-label",
+    showing?"Sembunyikan password":"Tampilkan password"
+  );
+}
 </script>
 </body></html>
