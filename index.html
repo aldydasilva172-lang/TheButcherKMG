@@ -12963,27 +12963,24 @@ input{
   #zfoodScannerReader{width:100%;height:170px}
 }
 
-/* Z-FOOD POPUP CALCULATOR */
-.quantity-tools{display:flex;gap:8px;align-items:stretch}
-.quantity-tools .quantity-input{flex:1;min-width:0}
-.quantity-calculator-btn{width:46px;flex:none;border:1px solid #f2c08e;border-radius:10px;background:#fff7ef;color:#df741c;font-size:22px;font-weight:800;cursor:pointer}
-#zfoodCalculatorModal{position:fixed;inset:0;z-index:100050;display:none;align-items:center;justify-content:center;padding:18px;background:rgba(12,16,22,.68)}
+#zfoodCalculatorModal{position:fixed;inset:0;z-index:100010;display:none;align-items:center;justify-content:center;padding:16px;background:rgba(15,20,28,.48)}
 #zfoodCalculatorModal.on{display:flex}
-.zfood-calculator-minimize{width:34px;height:34px;border:0;border-radius:50%;background:#fff0e2;color:#d96c12;font-size:20px;font-weight:800;margin-left:auto;margin-right:7px}
-#zfoodCalculatorRestore{display:none;position:fixed;right:18px;bottom:22px;z-index:100051;border:0;border-radius:999px;padding:13px 17px;background:#e87516;color:#fff;font-weight:800;box-shadow:0 8px 24px rgba(0,0,0,.25);align-items:center;gap:8px}
-#zfoodCalculatorRestore.on{display:flex}
-.zfood-calculator{width:min(100%,360px);padding:17px;background:#f7f8fa;border-radius:24px;box-shadow:0 24px 70px rgba(0,0,0,.35)}
-.zfood-calculator-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;color:#252a31;font-weight:800}
-.zfood-calculator-close{width:34px;height:34px;border:0;border-radius:50%;background:#e9edf1;font-size:22px;color:#59616b}
-.zfood-calculator-display{width:100%;min-height:78px;padding:13px 15px;border-radius:15px;background:#fff;border:1px solid #e2e5e9;text-align:right;margin-bottom:13px;display:flex;flex-direction:column;justify-content:center;overflow:hidden}
-#zfoodCalcExpression{font-size:13px;color:#89919b;min-height:19px;overflow:hidden}
-#zfoodCalcValue{font-size:32px;font-weight:750;color:#171b20;white-space:nowrap;overflow-x:auto}
-.zfood-calc-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:9px}
-.zfood-calc-key{height:58px;border:0;border-radius:14px;background:#fff;color:#20252b;font-size:23px;font-weight:650;box-shadow:0 2px 5px rgba(20,30,40,.07);cursor:pointer;touch-action:manipulation}
-.zfood-calc-key.operator{background:#fff0e2;color:#d96c12}
-.zfood-calc-key.action{background:#e9edf1;color:#4c5662}
-.zfood-calc-key.equal{background:#e87516;color:#fff}
-.zfood-calc-key.apply{grid-column:span 4;height:50px;background:#198754;color:#fff;font-size:16px}
+#zfoodCalculatorModal .zcalc-card{width:min(100%,330px);padding:16px;border-radius:20px;background:#fff;color:#202938;box-shadow:0 24px 70px rgba(0,0,0,.28)}
+#zfoodCalculatorModal .zcalc-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px}
+#zfoodCalculatorModal .zcalc-head strong{font-size:13px;font-weight:900}
+#zfoodCalculatorModal .zcalc-head button{border:0;background:#f1f3f5;border-radius:9px;width:34px;height:34px;font-size:21px;color:#475467}
+#zfoodCalculatorModal .zcalc-hint{font-size:10px;color:#667085;margin:0 0 9px}
+#zfoodCalculatorModal .zcalc-display{width:100%;height:52px;padding:0 13px;border:1px solid #e1e5eb;border-radius:12px;text-align:right;font-size:24px;font-weight:800;color:#17202a;background:#f8fafc;outline:none}
+#zfoodCalculatorModal .zcalc-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin-top:12px}
+#zfoodCalculatorModal .zcalc-key{height:48px;border:0;border-radius:11px;background:#f1f3f6;color:#202938;font-size:18px;font-weight:800}
+#zfoodCalculatorModal .zcalc-key.op{background:#fff0e3;color:#e66d00}
+#zfoodCalculatorModal .zcalc-key.eq{background:#ff7a00;color:white}
+#zfoodCalculatorModal .zcalc-actions{display:flex;gap:8px;margin-top:11px}
+#zfoodCalculatorModal .zcalc-actions button{height:43px;flex:1;border:0;border-radius:11px;font-size:11px;font-weight:900}
+#zfoodCalculatorModal .zcalc-min{background:#eef1f5;color:#475467}
+#zfoodCalculatorModal .zcalc-apply{background:#ff7a00;color:#fff}
+#zfoodCalcRestore{position:fixed;right:16px;bottom:22px;z-index:100011;display:none;padding:12px 16px;border:0;border-radius:999px;background:#ff7a00;color:#fff;font-size:12px;font-weight:900;box-shadow:0 8px 25px rgba(0,0,0,.25)}
+#zfoodCalcRestore.on{display:block}
 
 &lt;/style&gt;
 
@@ -13477,43 +13474,43 @@ input{
 
 &lt;script src="https://unpkg.com/@zxing/library@latest"&gt;&lt;/script&gt;
 
-&lt;div id="zfoodCalculatorModal" aria-hidden="true" onclick="if(event.target===this)closeZfoodCalculator()"&gt;
-  &lt;div class="zfood-calculator"&gt;
-    &lt;div class="zfood-calculator-head"&gt;
-      &lt;span&gt;KALKULATOR QTY&lt;/span&gt;
-      &lt;button type="button" class="zfood-calculator-minimize" onclick="minimizeZfoodCalculator()" aria-label="Minimalkan" title="Minimalkan agar produk terlihat"&gt;−&lt;/button&gt;
-      &lt;button type="button" class="zfood-calculator-close" onclick="closeZfoodCalculator()" aria-label="Tutup"&gt;×&lt;/button&gt;
+&lt;div id="zfoodCalculatorModal" aria-hidden="true"&gt;
+  &lt;div class="zcalc-card"&gt;
+    &lt;div class="zcalc-head"&gt;
+      &lt;strong id="zcalcTitle"&gt;KALKULATOR QTY&lt;/strong&gt;
+      &lt;button type="button" onclick="closeZfoodCalculator()" aria-label="Tutup"&gt;×&lt;/button&gt;
     &lt;/div&gt;
-    &lt;div class="zfood-calculator-display"&gt;
-      &lt;div id="zfoodCalcExpression"&gt;&amp;nbsp;&lt;/div&gt;
-      &lt;div id="zfoodCalcValue"&gt;0&lt;/div&gt;
+    &lt;div class="zcalc-hint" id="zcalcHint"&gt;Nilai awal mengambil total Qty dari bagian seberang. Angka tetap bisa diedit.&lt;/div&gt;
+    &lt;input id="zcalcDisplay" class="zcalc-display" type="text" inputmode="decimal" autocomplete="off" value="0"&gt;
+    &lt;div class="zcalc-grid"&gt;
+      &lt;button class="zcalc-key op" onclick="zcalcPress('C')"&gt;C&lt;/button&gt;
+      &lt;button class="zcalc-key op" onclick="zcalcPress('DEL')"&gt;⌫&lt;/button&gt;
+      &lt;button class="zcalc-key op" onclick="zcalcPress('%')"&gt;%&lt;/button&gt;
+      &lt;button class="zcalc-key op" onclick="zcalcPress('/')"&gt;÷&lt;/button&gt;
+      &lt;button class="zcalc-key" onclick="zcalcPress('7')"&gt;7&lt;/button&gt;
+      &lt;button class="zcalc-key" onclick="zcalcPress('8')"&gt;8&lt;/button&gt;
+      &lt;button class="zcalc-key" onclick="zcalcPress('9')"&gt;9&lt;/button&gt;
+      &lt;button class="zcalc-key op" onclick="zcalcPress('*')"&gt;×&lt;/button&gt;
+      &lt;button class="zcalc-key" onclick="zcalcPress('4')"&gt;4&lt;/button&gt;
+      &lt;button class="zcalc-key" onclick="zcalcPress('5')"&gt;5&lt;/button&gt;
+      &lt;button class="zcalc-key" onclick="zcalcPress('6')"&gt;6&lt;/button&gt;
+      &lt;button class="zcalc-key op" onclick="zcalcPress('-')"&gt;−&lt;/button&gt;
+      &lt;button class="zcalc-key" onclick="zcalcPress('1')"&gt;1&lt;/button&gt;
+      &lt;button class="zcalc-key" onclick="zcalcPress('2')"&gt;2&lt;/button&gt;
+      &lt;button class="zcalc-key" onclick="zcalcPress('3')"&gt;3&lt;/button&gt;
+      &lt;button class="zcalc-key op" onclick="zcalcPress('+')"&gt;+&lt;/button&gt;
+      &lt;button class="zcalc-key" onclick="zcalcPress('±')"&gt;±&lt;/button&gt;
+      &lt;button class="zcalc-key" onclick="zcalcPress('0')"&gt;0&lt;/button&gt;
+      &lt;button class="zcalc-key" onclick="zcalcPress(',')"&gt;,&lt;/button&gt;
+      &lt;button class="zcalc-key eq" onclick="zcalcPress('=')"&gt;=&lt;/button&gt;
     &lt;/div&gt;
-    &lt;div class="zfood-calc-grid"&gt;
-      &lt;button type="button" class="zfood-calc-key action" onclick="zfoodCalcAction('clear')"&gt;AC&lt;/button&gt;
-      &lt;button type="button" class="zfood-calc-key action" onclick="zfoodCalcAction('back')"&gt;⌫&lt;/button&gt;
-      &lt;button type="button" class="zfood-calc-key operator" onclick="zfoodCalcAction('/')"&gt;÷&lt;/button&gt;
-      &lt;button type="button" class="zfood-calc-key operator" onclick="zfoodCalcAction('*')"&gt;×&lt;/button&gt;
-      &lt;button type="button" class="zfood-calc-key" onclick="zfoodCalcAction('7')"&gt;7&lt;/button&gt;
-      &lt;button type="button" class="zfood-calc-key" onclick="zfoodCalcAction('8')"&gt;8&lt;/button&gt;
-      &lt;button type="button" class="zfood-calc-key" onclick="zfoodCalcAction('9')"&gt;9&lt;/button&gt;
-      &lt;button type="button" class="zfood-calc-key operator" onclick="zfoodCalcAction('-')"&gt;−&lt;/button&gt;
-      &lt;button type="button" class="zfood-calc-key" onclick="zfoodCalcAction('4')"&gt;4&lt;/button&gt;
-      &lt;button type="button" class="zfood-calc-key" onclick="zfoodCalcAction('5')"&gt;5&lt;/button&gt;
-      &lt;button type="button" class="zfood-calc-key" onclick="zfoodCalcAction('6')"&gt;6&lt;/button&gt;
-      &lt;button type="button" class="zfood-calc-key operator" onclick="zfoodCalcAction('+')"&gt;+&lt;/button&gt;
-      &lt;button type="button" class="zfood-calc-key" onclick="zfoodCalcAction('1')"&gt;1&lt;/button&gt;
-      &lt;button type="button" class="zfood-calc-key" onclick="zfoodCalcAction('2')"&gt;2&lt;/button&gt;
-      &lt;button type="button" class="zfood-calc-key" onclick="zfoodCalcAction('3')"&gt;3&lt;/button&gt;
-      &lt;button type="button" class="zfood-calc-key operator" onclick="zfoodCalcAction('=')"&gt;=&lt;/button&gt;
-      &lt;button type="button" class="zfood-calc-key" onclick="zfoodCalcAction('0')"&gt;0&lt;/button&gt;
-      &lt;button type="button" class="zfood-calc-key" onclick="zfoodCalcAction('00')"&gt;00&lt;/button&gt;
-      &lt;button type="button" class="zfood-calc-key" onclick="zfoodCalcAction(',')"&gt;,&lt;/button&gt;
-      &lt;button type="button" class="zfood-calc-key action" onclick="zfoodCalcAction('sign')"&gt;±&lt;/button&gt;
-      &lt;button type="button" class="zfood-calc-key apply" onclick="applyZfoodCalculator()"&gt;GUNAKAN HASIL → QTY&lt;/button&gt;
+    &lt;div class="zcalc-actions"&gt;
+      &lt;button type="button" class="zcalc-min" onclick="minimizeZfoodCalculator()"&gt;MINIMIZE&lt;/button&gt;
+      &lt;button type="button" class="zcalc-apply" onclick="applyZfoodCalculator()"&gt;GUNAKAN HASIL → QTY&lt;/button&gt;
     &lt;/div&gt;
   &lt;/div&gt;
 &lt;/div&gt;
-&lt;button type="button" id="zfoodCalculatorRestore" onclick="restoreZfoodCalculator()"&gt;⌗ KALKULATOR QTY&lt;/button&gt;
+&lt;button id="zfoodCalcRestore" type="button" onclick="restoreZfoodCalculator()"&gt;⌗ KALKULATOR&lt;/button&gt;
 
 &lt;div id="zfoodScannerModal" aria-hidden="true"&gt;
   &lt;div class="zfood-scanner-card"&gt;
@@ -13537,149 +13534,130 @@ input{
    Z-FOOD POPUP CALCULATOR
 ========================================================= */
 let zfoodCalcTarget=null;
-let zfoodCalcCurrent='0';
-let zfoodCalcStored=null;
-let zfoodCalcOperator=null;
-let zfoodCalcReplace=false;
-let zfoodCalcExpression='';
+let zcalcStoredValue=null;
+let zcalcPendingOperator=null;
+let zcalcWaitingForValue=false;
 
+function zfoodNumber(value){
+  const raw=String(value??'0').trim().replace(/\s/g,'').replace(/\./g,'').replace(',','.');
+  const n=parseFloat(raw);
+  return Number.isFinite(n)?n:0;
+}
+function zfoodFormatCalc(value){
+  if(!Number.isFinite(value))return '0';
+  return String(Math.round(value*1000)/1000).replace('.',',');
+}
 function openZfoodCalculator(button){
   const product=button?.closest('.product');
   const input=product?.querySelector('.quantity-input');
   const modal=document.getElementById('zfoodCalculatorModal');
   if(!input||!modal)return;
   zfoodCalcTarget=input;
-
-  // Kalkulator silang: Produk Awal mengambil total Qty Produk Akhir,
-  // sedangkan Produk Akhir mengambil total Qty Produk Awal.
-  // Nilai awal ini tetap bisa diubah/dihitung ulang secara manual.
-  const productType=product.dataset.type || '';
-  const oppositeType=productType==='awal' ? 'akhir' : 'awal';
+  const productType=product.dataset.type||'';
+  const oppositeType=productType==='awal'?'akhir':'awal';
   const oppositeTotal=getZfoodSectionQtyTotal(oppositeType);
-  zfoodCalcCurrent=zfoodCalcFormat(oppositeTotal);
-  zfoodCalcStored=null;
-  zfoodCalcOperator=null;
-  zfoodCalcReplace=false;
-  zfoodCalcExpression='Total Qty Produk '+(oppositeType==='awal'?'Awal':'Akhir')+' (bisa diedit)';
-  renderZfoodCalculator();
+  const current=String(input.value||'').trim();
+  const display=document.getElementById('zcalcDisplay');
+  const title=document.getElementById('zcalcTitle');
+  const hint=document.getElementById('zcalcHint');
+  zcalcStoredValue=null;
+  zcalcPendingOperator=null;
+  zcalcWaitingForValue=false;
+  if(display)display.value=current||zfoodFormatCalc(oppositeTotal);
+  if(title)title.textContent='KALKULATOR • PRODUK '+(productType==='awal'?'AWAL':'AKHIR');
+  if(hint)hint.textContent='Total Qty Produk '+(oppositeType==='awal'?'Awal':'Akhir')+': '+zfoodFormatCalc(oppositeTotal)+' • Nilai bisa diedit manual.';
   modal.classList.add('on');
   modal.setAttribute('aria-hidden','false');
+  document.getElementById('zfoodCalcRestore')?.classList.remove('on');
 }
-
-
-function getZfoodSectionQtyTotal(type){
-  const list=document.getElementById(type==='awal'?'awalList':'akhirList');
-  if(!list)return 0;
-  let total=0;
-  list.querySelectorAll('.product .quantity-input').forEach(function(input){
-    const raw=String(input.value||'').trim().replace(/\s/g,'').replace(/,/g,'.');
-    if(raw==='')return;
-    const value=Number(raw);
-    if(Number.isFinite(value))total+=value;
-  });
-  return total;
-}
-
 function minimizeZfoodCalculator(){
   const modal=document.getElementById('zfoodCalculatorModal');
-  const restore=document.getElementById('zfoodCalculatorRestore');
   if(modal){modal.classList.remove('on');modal.setAttribute('aria-hidden','true');}
-  if(restore)restore.classList.add('on');
-  // Target dan angka kalkulator tetap disimpan saat diminimalkan.
+  document.getElementById('zfoodCalcRestore')?.classList.add('on');
 }
-
 function restoreZfoodCalculator(){
+  document.getElementById('zfoodCalcRestore')?.classList.remove('on');
   const modal=document.getElementById('zfoodCalculatorModal');
-  const restore=document.getElementById('zfoodCalculatorRestore');
-  if(restore)restore.classList.remove('on');
   if(modal){modal.classList.add('on');modal.setAttribute('aria-hidden','false');}
-  renderZfoodCalculator();
 }
-
 function closeZfoodCalculator(){
   const modal=document.getElementById('zfoodCalculatorModal');
-  const restore=document.getElementById('zfoodCalculatorRestore');
   if(modal){modal.classList.remove('on');modal.setAttribute('aria-hidden','true');}
-  if(restore)restore.classList.remove('on');
+  document.getElementById('zfoodCalcRestore')?.classList.remove('on');
   zfoodCalcTarget=null;
 }
-
-function renderZfoodCalculator(){
-  const value=document.getElementById('zfoodCalcValue');
-  const expression=document.getElementById('zfoodCalcExpression');
-  if(value)value.textContent=String(zfoodCalcCurrent).replace(/\./g,',');
-  if(expression)expression.textContent=zfoodCalcExpression||'Kalkulator Produk Z-FOOD';
+function zcalcCalculate(a,b,operator){
+  if(operator==='+')return a+b;
+  if(operator==='-')return a-b;
+  if(operator==='*')return a*b;
+  if(operator==='/')return b===0?NaN:a/b;
+  return b;
 }
-
-function zfoodCalcNumber(){
-  const n=Number(String(zfoodCalcCurrent).replace(',','.'));
-  return Number.isFinite(n)?n:0;
-}
-
-function zfoodCalcFormat(n){
-  if(!Number.isFinite(n))return '0';
-  return String(Number(n.toFixed(6)));
-}
-
-function zfoodCalcAction(key){
-  if(/^\d+$/.test(key)){
-    if(zfoodCalcReplace)zfoodCalcCurrent=key==='00'?'0':key;
-    else zfoodCalcCurrent=(zfoodCalcCurrent==='0'?'':zfoodCalcCurrent)+key;
-    zfoodCalcReplace=false;
-  }else if(key===','){
-    if(zfoodCalcReplace){zfoodCalcCurrent='0,';zfoodCalcReplace=false;}
-    else if(!zfoodCalcCurrent.includes('.')&&!zfoodCalcCurrent.includes(','))zfoodCalcCurrent+=',';
-    zfoodCalcCurrent=zfoodCalcCurrent.replace(/,/g,'.');
-  }else if(key==='clear'){
-    zfoodCalcCurrent='0';zfoodCalcStored=null;zfoodCalcOperator=null;zfoodCalcExpression='';zfoodCalcReplace=false;
-  }else if(key==='back'){
-    zfoodCalcCurrent=zfoodCalcCurrent.length>1?zfoodCalcCurrent.slice(0,-1):'0';
-    zfoodCalcReplace=false;
-  }else if(key==='sign'){
-    zfoodCalcCurrent=String(-zfoodCalcNumber());
-  }else if(['+','-','*','/'].includes(key)){
-    if(zfoodCalcOperator&&!zfoodCalcReplace)zfoodCalcCalculate();
-    zfoodCalcStored=zfoodCalcNumber();zfoodCalcOperator=key;zfoodCalcExpression=String(zfoodCalcStored).replace(/\./g,',')+' '+({'*':'×','/':'÷','+':'+','-':'−'}[key]);zfoodCalcReplace=true;
-  }else if(key==='='){
-    zfoodCalcCalculate();
+function zcalcPress(key){
+  const display=document.getElementById('zcalcDisplay');
+  if(!display)return;
+  let value=String(display.value||'0');
+  let number=zfoodNumber(value);
+  if(key==='C'){
+    display.value='0';zcalcStoredValue=null;zcalcPendingOperator=null;zcalcWaitingForValue=false;return;
   }
-  renderZfoodCalculator();
+  if(key==='DEL'){
+    if(zcalcWaitingForValue){display.value='0';zcalcWaitingForValue=false;return;}
+    display.value=value.length>1?value.slice(0,-1):'0';
+    if(display.value==='-'||display.value==='')display.value='0';
+    return;
+  }
+  if(key==='±'){display.value=value.startsWith('-')?value.slice(1):'-'+value;return;}
+  if(key==='%'){display.value=zfoodFormatCalc(number/100);zcalcWaitingForValue=false;return;}
+  if(['+','-','*','/'].includes(key)){
+    if(zcalcPendingOperator&&!zcalcWaitingForValue){
+      const result=zcalcCalculate(Number(zcalcStoredValue),number,zcalcPendingOperator);
+      if(!Number.isFinite(result)){
+        display.value='Error';zcalcStoredValue=null;zcalcPendingOperator=null;zcalcWaitingForValue=true;return;
+      }
+      display.value=zfoodFormatCalc(result);zcalcStoredValue=result;
+    }else{zcalcStoredValue=number;}
+    zcalcPendingOperator=key;zcalcWaitingForValue=true;return;
+  }
+  if(key==='='){
+    if(zcalcPendingOperator&&zcalcStoredValue!==null){
+      const result=zcalcCalculate(Number(zcalcStoredValue),number,zcalcPendingOperator);
+      display.value=Number.isFinite(result)?zfoodFormatCalc(result):'Error';
+      zcalcStoredValue=null;zcalcPendingOperator=null;zcalcWaitingForValue=true;
+    }else{display.value=zfoodFormatCalc(number);}
+    return;
+  }
+  if(key===','){
+    if(zcalcWaitingForValue){display.value='0,';zcalcWaitingForValue=false;}
+    else if(!value.includes(',')){display.value=value+',';}
+    return;
+  }
+  if(zcalcWaitingForValue){display.value=key;zcalcWaitingForValue=false;return;}
+  display.value=value==='0'?key:value+key;
 }
-
-function zfoodCalcCalculate(){
-  if(zfoodCalcStored===null||!zfoodCalcOperator)return;
-  const a=zfoodCalcStored,b=zfoodCalcNumber();
-  let result=0;
-  if(zfoodCalcOperator==='+')result=a+b;
-  if(zfoodCalcOperator==='-')result=a-b;
-  if(zfoodCalcOperator==='*')result=a*b;
-  if(zfoodCalcOperator==='/')result=b===0?NaN:a/b;
-  if(!Number.isFinite(result)){zfoodCalcCurrent='0';zfoodCalcExpression='Tidak bisa dibagi 0';}
-  else{zfoodCalcCurrent=zfoodCalcFormat(result);zfoodCalcExpression=zfoodCalcFormat(a).replace(/\./g,',')+' '+({'*':'×','/':'÷','+':'+','-':'−'}[zfoodCalcOperator])+' '+zfoodCalcFormat(b).replace(/\./g,',')+' =';}
-  zfoodCalcStored=null;zfoodCalcOperator=null;zfoodCalcReplace=true;
-}
-
 function applyZfoodCalculator(){
-  if(!zfoodCalcTarget)return;
-  if(zfoodCalcOperator)zfoodCalcCalculate();
-  const result=zfoodCalcNumber();
-  if(!Number.isFinite(result))return;
-  const value=String(zfoodCalcFormat(result)).replace(/\./g,',');
+  const display=document.getElementById('zcalcDisplay');
+  if(!zfoodCalcTarget||!display)return;
+  if(zcalcPendingOperator&&zcalcStoredValue!==null)zcalcPress('=');
+  const value=String(display.value||'').trim();
+  if(!value||value==='-'||value===','||value==='Error'){
+    alert('Masukkan angka Qty yang valid.');return;
+  }
   zfoodCalcTarget.value=value;
   updateQuantity(zfoodCalcTarget);
   closeZfoodCalculator();
 }
-
 document.addEventListener('keydown',function(event){
   const modal=document.getElementById('zfoodCalculatorModal');
   if(!modal?.classList.contains('on'))return;
   if(event.key==='Escape'){closeZfoodCalculator();return;}
-  if(event.key==='Enter'){event.preventDefault();zfoodCalcAction('=');return;}
-  if('0123456789'.includes(event.key)){zfoodCalcAction(event.key);return;}
-  if(event.key===','||event.key==='.')zfoodCalcAction(',');
-  if(['+','-','*','/'].includes(event.key))zfoodCalcAction(event.key);
-  if(event.key==='Backspace')zfoodCalcAction('back');
+  if(event.key==='Enter'){event.preventDefault();zcalcPress('=');return;}
+  if('0123456789'.includes(event.key)){zcalcPress(event.key);return;}
+  if(event.key===','||event.key==='.')zcalcPress(',');
+  if(['+','-','*','/'].includes(event.key))zcalcPress(event.key);
+  if(event.key==='Backspace')zcalcPress('DEL');
 });
+
 
 /* =========================================================
    Z-FOOD BARCODE SCANNER - ZXing
