@@ -1984,6 +1984,25 @@ button
   font-weight:800;
   text-align:right
 }
+/* USER MANAGEMENT */
+.user-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px;margin:10px 0}
+.user-stat{padding:10px;border:1px solid rgba(255,255,255,.07);border-radius:11px;background:rgba(255,255,255,.035);min-width:0}
+.user-stat strong{display:block;font-size:19px;line-height:1.1}
+.user-stat span{display:block;margin-top:4px;color:#858c98;font-size:8px;font-weight:800}
+.user-search{width:100%;height:38px;margin:4px 0 9px;padding:0 11px;border-radius:9px;border:1px solid rgba(255,255,255,.10);outline:none;background:rgba(255,255,255,.045);color:#fff;font-size:11px}
+.user-list{display:flex;flex-direction:column;gap:7px;max-height:340px;overflow:auto}
+.user-card{padding:10px;border:1px solid rgba(255,255,255,.07);border-radius:11px;background:rgba(255,255,255,.035)}
+.user-card-top{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.user-card-name{font-size:11px;font-weight:900;overflow-wrap:anywhere}
+.user-card-email{margin-top:3px;color:#858c98;font-size:9px;overflow-wrap:anywhere}
+.user-card-meta{display:grid;grid-template-columns:1fr 1fr;gap:5px 10px;margin-top:8px;color:#9aa1ac;font-size:8px;line-height:1.45}
+.user-card-meta b{color:#d7dbe1;font-weight:800}
+.user-state{flex:none;padding:4px 7px;border-radius:999px;font-size:7px;font-weight:900;letter-spacing:.3px}
+.user-state.online{color:#52e99a;background:rgba(53,232,137,.10);border:1px solid rgba(53,232,137,.2)}
+.user-state.offline{color:#aab1bb;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1)}
+.user-state.pending{color:#ffbd69;background:rgba(255,179,71,.10);border:1px solid rgba(255,179,71,.2)}
+@media(max-width:480px){.user-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.user-card-meta{grid-template-columns:1fr}}
+
 .admin-section
 {
   margin-top:20px;
@@ -7075,9 +7094,21 @@ body
 </div>
 <button class="btn btn-secondary" onclick="openResetPasswordConfirm()" > KIRIM RESET PASSWORD </button>
 <div id="adminSection" class="admin-section hidden" >
+<h3> USER MANAGEMENT </h3>
+<div class="user-stats">
+  <div class="user-stat"><strong id="userTotalCount">0</strong><span>TOTAL AKUN</span></div>
+  <div class="user-stat"><strong id="userOnlineCount" style="color:#52e99a">0</strong><span>ONLINE</span></div>
+  <div class="user-stat"><strong id="userOfflineCount">0</strong><span>OFFLINE</span></div>
+  <div class="user-stat"><strong id="userPendingCount" style="color:#ffbd69">0</strong><span>PENDING</span></div>
+</div>
+<h3 style="margin-top:14px"> SEMUA AKUN TERDAFTAR </h3>
+<input id="userManagementSearch" class="user-search" type="search" placeholder="Cari username atau email..." oninput="filterManagedUsers()">
+<div id="managedUserList" class="user-list"><div class="history-empty">Memuat daftar akun...</div></div>
+<div class="admin-section" style="margin-top:15px;padding-top:14px">
 <h3> USER MENUNGGU PERSETUJUAN </h3>
 <div id="pendingList" class="pending-list" >
 <div class="history-empty"> Tidak ada user pending </div>
+</div>
 </div>
 </div>
 </div>
@@ -7197,7 +7228,13 @@ const DATA_BSD_API=window.APP_CONFIG.API.DATA_BSD;
 ===================================================== */  
   
 let currentUser=null;  
-let currentProfile=null;  
+let currentProfile=null;
+let presenceHeartbeat=null;
+let managedUsersUnsubscribe=null;
+let managedUsersRefreshTimer=null;
+let managedUsersCache=[];
+const PRESENCE_INTERVAL=45000;
+const ONLINE_WINDOW=120000;  
 let currentMode="opname";  
   
 let masterData=[];  
@@ -7958,6 +7995,8 @@ function showLogin(){
   
 function showDashboard(){  
   
+  startUserPresence();
+  
   $("loginPage")  
     .classList.add(  
       "hidden"  
@@ -8019,6 +8058,8 @@ function showDashboard(){
   
 window.logout=async function(){  
   
+  stopUserPresence();
+  
   try{  
   
     await signOut(auth);  
@@ -8072,7 +8113,8 @@ window.openSettings=function(){
         "hidden"  
       );  
   
-    loadPendingUsers();  
+    loadPendingUsers();
+    loadManagedUsers();  
   
   }else{  
   
@@ -8089,6 +8131,114 @@ window.openSettings=function(){
   
 };  
   
+/* =====================================================
+   USER PRESENCE / LAST ACTIVE
+   Menggunakan koleksi users yang sama agar salinan web
+   cukup mengganti konfigurasi Firebase.
+===================================================== */
+
+async function writePresence(isOnline=true, markLogin=false){
+  if(!currentUser?.uid)return;
+  const now=Date.now();
+  const payload={lastSeen:now,isOnline:!!isOnline};
+  if(markLogin)payload.lastLogin=now;
+  try{await updateDoc(doc(db,"users",currentUser.uid),payload)}
+  catch(error){console.warn("Presence update gagal:",error?.code||error)}
+}
+
+function startUserPresence(){
+  if(!currentUser?.uid)return;
+  if(presenceHeartbeat)clearInterval(presenceHeartbeat);
+  writePresence(true,true);
+  presenceHeartbeat=setInterval(()=>writePresence(true,false),PRESENCE_INTERVAL);
+}
+
+function stopUserPresence(){
+  if(presenceHeartbeat){clearInterval(presenceHeartbeat);presenceHeartbeat=null;}
+  if(currentUser?.uid)writePresence(false,false);
+  if(managedUsersUnsubscribe){managedUsersUnsubscribe();managedUsersUnsubscribe=null;}
+  if(managedUsersRefreshTimer){clearInterval(managedUsersRefreshTimer);managedUsersRefreshTimer=null;}
+}
+
+window.addEventListener("pagehide",()=>{
+  if(currentUser?.uid){
+    updateDoc(doc(db,"users",currentUser.uid),{isOnline:false,lastSeen:Date.now()}).catch(()=>{});
+  }
+});
+
+function formatUserDate(value){
+  if(!value)return "Belum ada data";
+  let date;
+  if(typeof value?.toDate==="function")date=value.toDate();
+  else if(typeof value==="number"||typeof value==="string")date=new Date(value);
+  else if(value?.seconds)date=new Date(value.seconds*1000);
+  else return "Belum ada data";
+  if(Number.isNaN(date.getTime()))return "Belum ada data";
+  return new Intl.DateTimeFormat("id-ID",{day:"2-digit",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit",hour12:false}).format(date);
+}
+
+function loadManagedUsers(){
+  if(currentProfile?.role!=="admin")return;
+  const list=$("managedUserList");
+  if(!list)return;
+  list.innerHTML='<div class="history-empty">Memuat daftar akun...</div>';
+  if(managedUsersUnsubscribe){managedUsersUnsubscribe();managedUsersUnsubscribe=null;}
+  if(managedUsersRefreshTimer)clearInterval(managedUsersRefreshTimer);
+  managedUsersRefreshTimer=setInterval(()=>renderManagedUsers(),30000);
+  managedUsersUnsubscribe=onSnapshot(collection(db,"users"),snapshot=>{
+    managedUsersCache=snapshot.docs.map(userDoc=>({uid:userDoc.id,...userDoc.data()}));
+    renderManagedUsers();
+  },error=>{
+    console.error("User management listener:",error);
+    list.innerHTML='<div class="history-empty">Gagal memuat akun. Periksa Firestore Security Rules.</div>';
+  });
+}
+
+function renderManagedUsers(){
+  if(currentProfile?.role!=="admin")return;
+  const now=Date.now();
+  const total=managedUsersCache.length;
+  const online=managedUsersCache.filter(u=>u.status==="approved"&&u.isOnline===true&&u.lastSeen&&now-Number(u.lastSeen)<=ONLINE_WINDOW).length;
+  const pending=managedUsersCache.filter(u=>u.status==="pending").length;
+  $("userTotalCount").textContent=total;
+  $("userOnlineCount").textContent=online;
+  $("userOfflineCount").textContent=Math.max(0,total-online-pending);
+  $("userPendingCount").textContent=pending;
+  filterManagedUsers();
+}
+
+window.filterManagedUsers=function(){
+  if(currentProfile?.role!=="admin")return;
+  const list=$("managedUserList");
+  if(!list)return;
+  const term=String($("userManagementSearch")?.value||"").trim().toLowerCase();
+  const users=managedUsersCache.filter(u=>`${u.username||""} ${u.email||""} ${u.role||""}`.toLowerCase().includes(term));
+  if(!users.length){list.innerHTML='<div class="history-empty">Tidak ada akun yang cocok.</div>';return;}
+  list.innerHTML="";
+  users.sort((a,b)=>String(a.username||a.email||"").localeCompare(String(b.username||b.email||"")));
+  users.forEach(u=>{
+    const isPending=u.status==="pending";
+    const isOnline=!isPending&&u.isOnline===true&&u.lastSeen&&nowSafe()-Number(u.lastSeen)<=ONLINE_WINDOW;
+    const statusClass=isPending?"pending":isOnline?"online":"offline";
+    const statusText=isPending?"PENDING":isOnline?"ONLINE":"OFFLINE";
+    const card=document.createElement("div");
+    card.className="user-card";
+    card.innerHTML=`
+      <div class="user-card-top"><div class="user-card-name">${escapeHtml(u.username||"Tanpa username")}</div><span class="user-state ${statusClass}">${statusText}</span></div>
+      <div class="user-card-email">${escapeHtml(u.email||"-")}</div>
+      <div class="user-card-meta">
+        <div>Role: <b>${escapeHtml(u.role||"user")}</b></div>
+        <div>Status akun: <b>${escapeHtml(u.status||"-")}</b></div>
+        <div>Terakhir buka: <b>${escapeHtml(formatUserDate(u.lastLogin))}</b></div>
+        <div>Terakhir aktif: <b>${escapeHtml(formatUserDate(u.lastSeen))}</b></div>
+        <div>Terdaftar: <b>${escapeHtml(formatUserDate(u.createdAt))}</b></div>
+      </div>`;
+    list.appendChild(card);
+  });
+};
+
+function nowSafe(){return Date.now();}
+
 /* =====================================================  
    RESET PASSWORD  
 ===================================================== */  
