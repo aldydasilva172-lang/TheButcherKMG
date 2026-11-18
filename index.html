@@ -14188,7 +14188,7 @@ function renumberProducts(type){
 function parseZfoodWeighedBarcode(value){
   const code = String(value || '').trim();
 
-  if(!/^20\\d{11}$/.test(code)) return null;
+  if(!/^20\d{11}$/.test(code)) return null;
 
   const article = code.substring(2, 7);
   const gramsText = code.substring(7, 12);
