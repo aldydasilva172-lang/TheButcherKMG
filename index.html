@@ -12973,7 +12973,7 @@ input{
 #zfoodCalculatorModal .zcalc-head strong{font-size:13px;font-weight:900}
 #zfoodCalculatorModal .zcalc-head button{border:0;background:#f1f3f5;border-radius:9px;width:34px;height:34px;font-size:21px;color:#475467}
 #zfoodCalculatorModal .zcalc-hint{font-size:10px;color:#667085;margin:0 0 9px}
-#zfoodCalculatorModal .zcalc-display{width:100%;height:52px;padding:0 13px;border:1px solid #e1e5eb;border-radius:12px;text-align:right;font-size:24px;font-weight:800;color:#17202a;background:#f8fafc;outline:none}
+#zfoodCalculatorModal .zcalc-display{width:100%;height:52px;padding:0 13px;border:1px solid #e1e5eb;border-radius:12px;text-align:right;font-size:22px;font-weight:800;color:#17202a;background:#f8fafc;outline:none;white-space:nowrap;overflow-x:auto}
 #zfoodCalculatorModal .zcalc-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin-top:12px}
 #zfoodCalculatorModal .zcalc-key{height:48px;border:0;border-radius:11px;background:#f1f3f6;color:#202938;font-size:18px;font-weight:800}
 #zfoodCalculatorModal .zcalc-key.op{background:#fff0e3;color:#e66d00}
@@ -13600,12 +13600,77 @@ function zcalcCalculate(a,b,operator){
   return b;
 }
 
+function zcalcNormalizeOperator(value){
+  return String(value||'')
+    .replace(/[×xX]/g,'*')
+    .replace(/÷/g,'/')
+    .replace(/−/g,'-')
+    .replace(/,/g,'.')
+    .replace(/\s+/g,'');
+}
+
+function zcalcEvaluateExpression(expression){
+  const source=zcalcNormalizeOperator(expression);
+  if(!source)return NaN;
+
+  const rawTokens=source.match(/(?:\d+(?:\.\d*)?|\.\d+)|[+\-*/]/g);
+  if(!rawTokens)return NaN;
+  if(rawTokens.join('')!==source)return NaN;
+
+  const tokens=[];
+  for(let i=0;i<rawTokens.length;i++){
+    const token=rawTokens[i];
+    const previous=tokens[tokens.length-1];
+    const unaryMinus=token==='-' && (i===0 || ['+','-','*','/'].includes(previous));
+    if(unaryMinus){
+      const next=rawTokens[i+1];
+      if(!next || !/^(?:\d+(?:\.\d*)?|\.\d+)$/.test(next))return NaN;
+      tokens.push(String(-Number(next)));
+      i++;
+    }else{
+      tokens.push(token);
+    }
+  }
+
+  if(tokens.length===0 || ['+','-','*','/'].includes(tokens[tokens.length-1]))return NaN;
+
+  const values=[];
+  const operators=[];
+  const precedence={'+':1,'-':1,'*':2,'/':2};
+  const calculate=()=>{
+    const op=operators.pop();
+    const b=values.pop();
+    const a=values.pop();
+    if(a===undefined||b===undefined)return false;
+    if(op==='+')values.push(a+b);
+    else if(op==='-')values.push(a-b);
+    else if(op==='*')values.push(a*b);
+    else if(op==='/')values.push(b===0?NaN:a/b);
+    return true;
+  };
+
+  for(const token of tokens){
+    if(/^-?(?:\d+(?:\.\d*)?|\.\d+)$/.test(token)){
+      values.push(Number(token));
+    }else if(Object.prototype.hasOwnProperty.call(precedence,token)){
+      while(operators.length && precedence[operators[operators.length-1]]>=precedence[token]){
+        if(!calculate())return NaN;
+      }
+      operators.push(token);
+    }else return NaN;
+  }
+
+  while(operators.length){
+    if(!calculate())return NaN;
+  }
+  return values.length===1 && Number.isFinite(values[0])?values[0]:NaN;
+}
+
 function zcalcPress(key){
   const display=document.getElementById('zcalcDisplay');
   if(!display)return;
 
-  let value=String(display.value||'0');
-  let number=zfoodNumber(value);
+  let value=String(display.value||'0').trim();
 
   if(key==='C'){
     display.value='0';
@@ -13616,91 +13681,96 @@ function zcalcPress(key){
   }
 
   if(key==='DEL'){
-    if(zcalcWaitingForValue){display.value='0';zcalcWaitingForValue=false;return;}
-    display.value=value.length>1?value.slice(0,-1):'0';
-    if(display.value==='-'||display.value==='')display.value='0';
-    return;
-  }
-
-  if(key==='±'){
-    display.value=value.startsWith('-')?value.slice(1):'-'+value;
-    return;
-  }
-
-  if(key==='%'){
-    display.value=zfoodFormatCalc(number/100);
-    zcalcWaitingForValue=false;
-    return;
-  }
-
-  if(['+','-','*','/'].includes(key)){
-    if(zcalcPendingOperator && !zcalcWaitingForValue){
-      const result=zcalcCalculate(
-        Number(zcalcStoredValue),
-        number,
-        zcalcPendingOperator
-      );
-      if(!Number.isFinite(result)){
-        display.value='Error';
-        zcalcStoredValue=null;
-        zcalcPendingOperator=null;
-        zcalcWaitingForValue=true;
-        return;
-      }
-      display.value=zfoodFormatCalc(result);
-      zcalcStoredValue=result;
-    }else{
-      zcalcStoredValue=number;
-    }
-    zcalcPendingOperator=key;
-    zcalcWaitingForValue=true;
+    value=value.slice(0,-1);
+    display.value=value||'0';
     return;
   }
 
   if(key==='='){
-    if(zcalcPendingOperator && zcalcStoredValue!==null){
-      const result=zcalcCalculate(
-        Number(zcalcStoredValue),
-        number,
-        zcalcPendingOperator
-      );
-      display.value=Number.isFinite(result)?zfoodFormatCalc(result):'Error';
-      zcalcStoredValue=null;
-      zcalcPendingOperator=null;
-      zcalcWaitingForValue=true;
-    }else{
-      display.value=zfoodFormatCalc(number);
+    const result=zcalcEvaluateExpression(value);
+    if(!Number.isFinite(result)){
+      display.value='Error';
+      return;
     }
+    display.value=zfoodFormatCalc(result);
+    zcalcStoredValue=null;
+    zcalcPendingOperator=null;
+    zcalcWaitingForValue=true;
+    return;
+  }
+
+  if(key==='%'){
+    const match=value.match(/(-?(?:\d+(?:[.,]\d*)?|[.,]\d+))$/);
+    if(match){
+      const number=Number(match[1].replace(',','.'))/100;
+      display.value=value.slice(0,match.index)+zfoodFormatCalc(number);
+    }
+    return;
+  }
+
+  if(key==='±'){
+    const match=value.match(/(-?(?:\d+(?:[.,]\d*)?|[.,]\d+))$/);
+    if(match){
+      const number=Number(match[1].replace(',','.'));
+      const replacement=zfoodFormatCalc(-number);
+      display.value=value.slice(0,match.index)+replacement;
+    }else if(value==='0'){
+      display.value='-0';
+    }
+    return;
+  }
+
+  if(['+','-','*','/'].includes(key)){
+    const operator=key==='*'?' × ':key==='/'?' ÷ ':key==='-'?' − ':' + ';
+    if(!value || value==='0'){
+      if(key==='-')display.value='-';
+      return;
+    }
+    if(/[+\-*/×÷−]\s*$/.test(value)){
+      display.value=value.replace(/[+\-*/×÷−]\s*$/,operator);
+    }else{
+      display.value=value+operator;
+    }
+    zcalcWaitingForValue=true;
     return;
   }
 
   if(key===','){
-    if(zcalcWaitingForValue){
-      display.value='0,';
-      zcalcWaitingForValue=false;
-    }else if(!value.includes(',')){
-      display.value=value+',';
+    const lastNumber=value.match(/(?:\d+(?:[.,]\d*)?|[.,]\d+)$/);
+    if(lastNumber){
+      if(!lastNumber[0].includes(',')&&!lastNumber[0].includes('.')){
+        display.value=value+',';
+      }
+    }else{
+      display.value=value+'0,';
     }
-    return;
-  }
-
-  if(zcalcWaitingForValue){
-    display.value=key;
     zcalcWaitingForValue=false;
     return;
   }
 
-  display.value=value==='0'?key:value+key;
+  if(/^\d$/.test(String(key))){
+    if(value==='0'||value==='Error'){
+      display.value=key;
+    }else{
+      display.value=value+key;
+    }
+    zcalcWaitingForValue=false;
+  }
 }
 
 function applyZfoodCalculator(){
   const display=document.getElementById('zcalcDisplay');
   if(!zfoodCalcTarget||!display)return;
-  const value=String(display.value||'').trim();
-  if(!value||value==='-'||value===','){
-    alert('Masukkan angka Qty yang valid.');
+
+  const expression=String(display.value||'').trim();
+  const result=zcalcEvaluateExpression(expression);
+
+  if(!expression || !Number.isFinite(result)){
+    alert('Masukkan perhitungan atau angka Qty yang valid.');
     return;
   }
+
+  const value=zfoodFormatCalc(result);
   zfoodCalcTarget.value=value;
   updateQuantity(zfoodCalcTarget);
   closeZfoodCalculator();
