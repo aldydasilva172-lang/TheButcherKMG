@@ -6632,6 +6632,35 @@ body
   transform:translateY(-50%) scale(.94);
 }
 </style>
+<style>
+/* ---------- DASHBOARD MEDIA LANDSCAPE ---------- */
+#dashboard .dashboard-media-wrap{
+  width:100%;
+  max-width:900px;
+  margin-top:16px;
+}
+#dashboard .dashboard-media{
+  position:relative;
+  width:100%;
+  aspect-ratio:16 / 9;
+  overflow:hidden;
+  border-radius:15px;
+  background:#e9edf2;
+  border:1px solid #e5e8eb;
+  box-shadow:0 7px 22px rgba(15,23,42,.06);
+}
+#dashboard .dashboard-media img,
+#dashboard .dashboard-media video{
+  display:block;
+  width:100%;
+  height:100%;
+  object-fit:cover;
+}
+@media(max-width:800px){
+  #dashboard .dashboard-media-wrap{margin-top:10px;}
+  #dashboard .dashboard-media{border-radius:11px;}
+}
+</style>
 </head>
 <body>
 <section id="loginPage">
@@ -6766,9 +6795,15 @@ body
 <p>Sistem siap digunakan dan terhubung.</p>
 </div>
 </div>
-<div class="overview-card overview-media-card">
-  <div class="overview-media-frame" id="dashboardMediaFrame" aria-label="Media dashboard"></div>
 </div>
+<!-- MEDIA DASHBOARD: ganti nama file pada src setelah foto/video diupload -->
+<div class="dashboard-media-wrap">
+  <div class="dashboard-media">
+    <img src="198E3944-D2F5-4737-BC0D-5FCD2F6C0582.png" alt="Dashboard media" loading="lazy">
+    <!-- Untuk video, ganti tag img di atas dengan:
+    <video src="198E3944-D2F5-4737-BC0D-5FCD2F6C0582.png" autoplay muted loop playsinline controls></video>
+    -->
+  </div>
 </div>
 <div class="dashboard-footer">
 <span>CREATED BY • <span style="color: #1976D2;">ALDI PRAYOGA</span>
@@ -19217,114 +19252,4 @@ function togglePassword(id,button){
   );
 }
 </script>
-
-
-<style id="dashboard-media-card-style">
-/* Foto/video mengisi seluruh kotak ketiga, tanpa teks atau bingkai tambahan */
-#dashboard .dashboard-overview{
-  grid-template-columns:repeat(3,minmax(0,1fr))!important;
-  align-items:stretch!important;
-}
-#dashboard .overview-card{min-width:0!important;}
-#dashboard .overview-media-card{
-  display:block!important;
-  position:relative!important;
-  min-height:72px!important;
-  height:100%!important;
-  padding:0!important;
-  gap:0!important;
-  overflow:hidden!important;
-  border:0!important;
-  box-shadow:none!important;
-  background:transparent!important;
-  border-radius:15px!important;
-}
-#dashboard .overview-media-frame{
-  display:block!important;
-  position:absolute!important;
-  inset:0!important;
-  width:100%!important;
-  height:100%!important;
-  min-height:72px!important;
-  overflow:hidden!important;
-  margin:0!important;
-  padding:0!important;
-  border:0!important;
-  border-radius:15px!important;
-  background:transparent!important;
-}
-#dashboard .overview-media-frame img,
-#dashboard .overview-media-frame video{
-  display:block!important;
-  width:100%!important;
-  height:100%!important;
-  min-height:72px!important;
-  object-fit:cover!important;
-  border:0!important;
-  border-radius:15px!important;
-}
-@media(max-width:800px){
-  #dashboard .dashboard-overview{
-    grid-template-columns:1fr!important;
-    gap:8px!important;
-  }
-  #dashboard .overview-media-card,
-  #dashboard .overview-media-frame,
-  #dashboard .overview-media-frame img,
-  #dashboard .overview-media-frame video{
-    min-height:72px!important;
-  }
-}
-@media(orientation:landscape) and (max-height:480px){
-  #dashboard .overview-media-card,
-  #dashboard .overview-media-frame,
-  #dashboard .overview-media-frame img,
-  #dashboard .overview-media-frame video{
-    min-height:58px!important;
-  }
-}
-</style>
-
-<script id="dashboard-media-loader">
-/* Ganti nama file di bawah setelah foto/video di-upload.
-   Letakkan file media di folder yang sama dengan file HTML.
-   Mendukung JPG, PNG, WEBP, GIF, MP4, WEBM, dan OGG. */
-const DASHBOARD_MEDIA_FILE = "232c59a2-a76c-4766-8c58-20a6e1b7550a.jpeg";
-(function loadDashboardMedia(){
-  const frame=document.getElementById("dashboardMediaFrame");
-  if(!frame) return;
-  const file=String(DASHBOARD_MEDIA_FILE||"").trim();
-  if(!file || file==="232c59a2-a76c-4766-8c58-20a6e1b7550a.jpeg") return;
-
-  const ext=(file.split("?")[0].split("#")[0].split(".").pop()||"").toLowerCase();
-  const videoTypes={mp4:"video/mp4",webm:"video/webm",ogg:"video/ogg"};
-  let media;
-
-  if(videoTypes[ext]){
-    media=document.createElement("video");
-    media.autoplay=true;
-    media.muted=true;
-    media.loop=true;
-    media.playsInline=true;
-    media.setAttribute("playsinline","");
-    media.setAttribute("webkit-playsinline","");
-    media.controls=true;
-    const source=document.createElement("source");
-    source.src=file;
-    source.type=videoTypes[ext];
-    media.appendChild(source);
-  }else{
-    media=document.createElement("img");
-    media.alt="Foto media dashboard";
-    media.src=file;
-  }
-
-  media.onerror=function(){
-    frame.replaceChildren();
-    console.warn("File media dashboard tidak ditemukan:",file);
-  };
-  frame.replaceChildren(media);
-})();
-</script>
-
 </body></html>
