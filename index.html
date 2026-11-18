@@ -13549,15 +13549,35 @@ function openZfoodCalculator(button){
   const modal=document.getElementById('zfoodCalculatorModal');
   if(!input||!modal)return;
   zfoodCalcTarget=input;
-  const initial=String(input.value||'').trim().replace(/,/g,'.');
-  zfoodCalcCurrent=initial!==''&&Number.isFinite(Number(initial))?initial:'0';
+
+  // Kalkulator silang: Produk Awal mengambil total Qty Produk Akhir,
+  // sedangkan Produk Akhir mengambil total Qty Produk Awal.
+  // Nilai awal ini tetap bisa diubah/dihitung ulang secara manual.
+  const productType=product.dataset.type || '';
+  const oppositeType=productType==='awal' ? 'akhir' : 'awal';
+  const oppositeTotal=getZfoodSectionQtyTotal(oppositeType);
+  zfoodCalcCurrent=zfoodCalcFormat(oppositeTotal);
   zfoodCalcStored=null;
   zfoodCalcOperator=null;
   zfoodCalcReplace=false;
-  zfoodCalcExpression='';
+  zfoodCalcExpression='Total Qty Produk '+(oppositeType==='awal'?'Awal':'Akhir')+' (bisa diedit)';
   renderZfoodCalculator();
   modal.classList.add('on');
   modal.setAttribute('aria-hidden','false');
+}
+
+
+function getZfoodSectionQtyTotal(type){
+  const list=document.getElementById(type==='awal'?'awalList':'akhirList');
+  if(!list)return 0;
+  let total=0;
+  list.querySelectorAll('.product .quantity-input').forEach(function(input){
+    const raw=String(input.value||'').trim().replace(/\s/g,'').replace(/,/g,'.');
+    if(raw==='')return;
+    const value=Number(raw);
+    if(Number.isFinite(value))total+=value;
+  });
+  return total;
 }
 
 function minimizeZfoodCalculator(){
