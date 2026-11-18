@@ -12963,6 +12963,9 @@ input{
   #zfoodScannerReader{width:100%;height:170px}
 }
 
+#zfoodPage .zfood-qty-row{display:flex;gap:7px;align-items:center}
+#zfoodPage .zfood-qty-row .quantity-input{flex:1;min-width:0}
+#zfoodPage .zfood-calc-open{width:46px;height:45px;flex:none;border:0;border-radius:11px;background:#fff1e5;color:#ed7100;font-size:23px;font-weight:900;box-shadow:0 2px 7px rgba(0,0,0,.08)}
 #zfoodCalculatorModal{position:fixed;inset:0;z-index:100010;display:none;align-items:center;justify-content:center;padding:16px;background:rgba(15,20,28,.48)}
 #zfoodCalculatorModal.on{display:flex}
 #zfoodCalculatorModal .zcalc-card{width:min(100%,330px);padding:16px;border-radius:20px;background:#fff;color:#202938;box-shadow:0 24px 70px rgba(0,0,0,.28)}
@@ -13512,6 +13515,8 @@ input{
 &lt;/div&gt;
 &lt;button id="zfoodCalcRestore" type="button" onclick="restoreZfoodCalculator()"&gt;⌗ KALKULATOR&lt;/button&gt;
 
+&lt;script src="https://unpkg.com/@zxing/library@latest"&gt;&lt;/script&gt;
+
 &lt;div id="zfoodScannerModal" aria-hidden="true"&gt;
   &lt;div class="zfood-scanner-card"&gt;
     &lt;div class="zfood-scanner-head"&gt;
@@ -13534,13 +13539,10 @@ input{
    Z-FOOD POPUP CALCULATOR
 ========================================================= */
 let zfoodCalcTarget=null;
-let zcalcStoredValue=null;
-let zcalcPendingOperator=null;
-let zcalcWaitingForValue=false;
+let zfoodCalcLastValue='0';
 
 function zfoodNumber(value){
-  const raw=String(value??'0').trim().replace(/\s/g,'').replace(/\./g,'').replace(',','.');
-  const n=parseFloat(raw);
+  const n=parseFloat(String(value||'0').replace(/\s/g,'').replace(/\./g,'').replace(',','.'));
   return Number.isFinite(n)?n:0;
 }
 function zfoodFormatCalc(value){
@@ -13548,44 +13550,48 @@ function zfoodFormatCalc(value){
   return String(Math.round(value*1000)/1000).replace('.',',');
 }
 function openZfoodCalculator(button){
-  const product=button?.closest('.product');
-  const input=product?.querySelector('.quantity-input');
-  const modal=document.getElementById('zfoodCalculatorModal');
-  if(!input||!modal)return;
-  zfoodCalcTarget=input;
-  const productType=product.dataset.type||'';
-  const oppositeType=productType==='awal'?'akhir':'awal';
-  const oppositeTotal=getZfoodSectionQtyTotal(oppositeType);
-  const current=String(input.value||'').trim();
+  const product=button.closest('.product');
+  const qty=product?product.querySelector('.quantity-input'):null;
+  if(!qty)return;
+  zfoodCalcTarget=qty;
+
+  const type=product.dataset.type;
+  const opposite=type==='awal'?'akhir':'awal';
+  const otherProducts=getAllProducts(opposite);
+  const crossTotal=otherProducts.reduce((sum,item)=>sum+zfoodNumber(item.quantity),0);
+  const current=String(qty.value||'').trim();
   const display=document.getElementById('zcalcDisplay');
   const title=document.getElementById('zcalcTitle');
   const hint=document.getElementById('zcalcHint');
+
   zcalcStoredValue=null;
   zcalcPendingOperator=null;
   zcalcWaitingForValue=false;
-  if(display)display.value=current||zfoodFormatCalc(oppositeTotal);
-  if(title)title.textContent='KALKULATOR • PRODUK '+(productType==='awal'?'AWAL':'AKHIR');
-  if(hint)hint.textContent='Total Qty Produk '+(oppositeType==='awal'?'Awal':'Akhir')+': '+zfoodFormatCalc(oppositeTotal)+' • Nilai bisa diedit manual.';
-  modal.classList.add('on');
-  modal.setAttribute('aria-hidden','false');
-  document.getElementById('zfoodCalcRestore')?.classList.remove('on');
-}
-function minimizeZfoodCalculator(){
-  const modal=document.getElementById('zfoodCalculatorModal');
-  if(modal){modal.classList.remove('on');modal.setAttribute('aria-hidden','true');}
-  document.getElementById('zfoodCalcRestore')?.classList.add('on');
-}
-function restoreZfoodCalculator(){
-  document.getElementById('zfoodCalcRestore')?.classList.remove('on');
-  const modal=document.getElementById('zfoodCalculatorModal');
-  if(modal){modal.classList.add('on');modal.setAttribute('aria-hidden','false');}
+  if(display)display.value=current||zfoodFormatCalc(crossTotal);
+  if(title)title.textContent='KALKULATOR • PRODUK '+(type==='awal'?'AWAL':'AKHIR');
+  if(hint)hint.textContent='Total Qty '+(opposite==='awal'?'Produk Awal':'Produk Akhir')+': '+zfoodFormatCalc(crossTotal)+' • Nilai bisa diedit manual.';
+  document.getElementById('zfoodCalculatorModal').classList.add('on');
+  document.getElementById('zfoodCalculatorModal').setAttribute('aria-hidden','false');
+  document.getElementById('zfoodCalcRestore').classList.remove('on');
 }
 function closeZfoodCalculator(){
-  const modal=document.getElementById('zfoodCalculatorModal');
-  if(modal){modal.classList.remove('on');modal.setAttribute('aria-hidden','true');}
-  document.getElementById('zfoodCalcRestore')?.classList.remove('on');
-  zfoodCalcTarget=null;
+  document.getElementById('zfoodCalculatorModal').classList.remove('on');
+  document.getElementById('zfoodCalculatorModal').setAttribute('aria-hidden','true');
+  document.getElementById('zfoodCalcRestore').classList.remove('on');
 }
+function minimizeZfoodCalculator(){
+  document.getElementById('zfoodCalculatorModal').classList.remove('on');
+  document.getElementById('zfoodCalcRestore').classList.add('on');
+}
+function restoreZfoodCalculator(){
+  document.getElementById('zfoodCalcRestore').classList.remove('on');
+  document.getElementById('zfoodCalculatorModal').classList.add('on');
+  document.getElementById('zfoodCalculatorModal').setAttribute('aria-hidden','false');
+}
+let zcalcStoredValue=null;
+let zcalcPendingOperator=null;
+let zcalcWaitingForValue=false;
+
 function zcalcCalculate(a,b,operator){
   if(operator==='+')return a+b;
   if(operator==='-')return a-b;
@@ -13593,80 +13599,112 @@ function zcalcCalculate(a,b,operator){
   if(operator==='/')return b===0?NaN:a/b;
   return b;
 }
+
 function zcalcPress(key){
   const display=document.getElementById('zcalcDisplay');
   if(!display)return;
+
   let value=String(display.value||'0');
   let number=zfoodNumber(value);
+
   if(key==='C'){
-    display.value='0';zcalcStoredValue=null;zcalcPendingOperator=null;zcalcWaitingForValue=false;return;
+    display.value='0';
+    zcalcStoredValue=null;
+    zcalcPendingOperator=null;
+    zcalcWaitingForValue=false;
+    return;
   }
+
   if(key==='DEL'){
     if(zcalcWaitingForValue){display.value='0';zcalcWaitingForValue=false;return;}
     display.value=value.length>1?value.slice(0,-1):'0';
     if(display.value==='-'||display.value==='')display.value='0';
     return;
   }
-  if(key==='±'){display.value=value.startsWith('-')?value.slice(1):'-'+value;return;}
-  if(key==='%'){display.value=zfoodFormatCalc(number/100);zcalcWaitingForValue=false;return;}
+
+  if(key==='±'){
+    display.value=value.startsWith('-')?value.slice(1):'-'+value;
+    return;
+  }
+
+  if(key==='%'){
+    display.value=zfoodFormatCalc(number/100);
+    zcalcWaitingForValue=false;
+    return;
+  }
+
   if(['+','-','*','/'].includes(key)){
-    if(zcalcPendingOperator&&!zcalcWaitingForValue){
-      const result=zcalcCalculate(Number(zcalcStoredValue),number,zcalcPendingOperator);
+    if(zcalcPendingOperator && !zcalcWaitingForValue){
+      const result=zcalcCalculate(
+        Number(zcalcStoredValue),
+        number,
+        zcalcPendingOperator
+      );
       if(!Number.isFinite(result)){
-        display.value='Error';zcalcStoredValue=null;zcalcPendingOperator=null;zcalcWaitingForValue=true;return;
+        display.value='Error';
+        zcalcStoredValue=null;
+        zcalcPendingOperator=null;
+        zcalcWaitingForValue=true;
+        return;
       }
-      display.value=zfoodFormatCalc(result);zcalcStoredValue=result;
-    }else{zcalcStoredValue=number;}
-    zcalcPendingOperator=key;zcalcWaitingForValue=true;return;
+      display.value=zfoodFormatCalc(result);
+      zcalcStoredValue=result;
+    }else{
+      zcalcStoredValue=number;
+    }
+    zcalcPendingOperator=key;
+    zcalcWaitingForValue=true;
+    return;
   }
+
   if(key==='='){
-    if(zcalcPendingOperator&&zcalcStoredValue!==null){
-      const result=zcalcCalculate(Number(zcalcStoredValue),number,zcalcPendingOperator);
+    if(zcalcPendingOperator && zcalcStoredValue!==null){
+      const result=zcalcCalculate(
+        Number(zcalcStoredValue),
+        number,
+        zcalcPendingOperator
+      );
       display.value=Number.isFinite(result)?zfoodFormatCalc(result):'Error';
-      zcalcStoredValue=null;zcalcPendingOperator=null;zcalcWaitingForValue=true;
-    }else{display.value=zfoodFormatCalc(number);}
+      zcalcStoredValue=null;
+      zcalcPendingOperator=null;
+      zcalcWaitingForValue=true;
+    }else{
+      display.value=zfoodFormatCalc(number);
+    }
     return;
   }
+
   if(key===','){
-    if(zcalcWaitingForValue){display.value='0,';zcalcWaitingForValue=false;}
-    else if(!value.includes(',')){display.value=value+',';}
+    if(zcalcWaitingForValue){
+      display.value='0,';
+      zcalcWaitingForValue=false;
+    }else if(!value.includes(',')){
+      display.value=value+',';
+    }
     return;
   }
-  if(zcalcWaitingForValue){display.value=key;zcalcWaitingForValue=false;return;}
+
+  if(zcalcWaitingForValue){
+    display.value=key;
+    zcalcWaitingForValue=false;
+    return;
+  }
+
   display.value=value==='0'?key:value+key;
 }
+
 function applyZfoodCalculator(){
   const display=document.getElementById('zcalcDisplay');
   if(!zfoodCalcTarget||!display)return;
-  if(zcalcPendingOperator&&zcalcStoredValue!==null)zcalcPress('=');
   const value=String(display.value||'').trim();
-  if(!value||value==='-'||value===','||value==='Error'){
-    alert('Masukkan angka Qty yang valid.');return;
+  if(!value||value==='-'||value===','){
+    alert('Masukkan angka Qty yang valid.');
+    return;
   }
   zfoodCalcTarget.value=value;
   updateQuantity(zfoodCalcTarget);
   closeZfoodCalculator();
 }
-document.addEventListener('keydown',function(event){
-  const modal=document.getElementById('zfoodCalculatorModal');
-  if(!modal?.classList.contains('on'))return;
-  if(event.key==='Escape'){closeZfoodCalculator();return;}
-  if(event.key==='Enter'){event.preventDefault();zcalcPress('=');return;}
-  if('0123456789'.includes(event.key)){zcalcPress(event.key);return;}
-  if(event.key===','||event.key==='.')zcalcPress(',');
-  if(['+','-','*','/'].includes(event.key))zcalcPress(event.key);
-  if(event.key==='Backspace')zcalcPress('DEL');
-});
-
-
-/* =========================================================
-   Z-FOOD BARCODE SCANNER - ZXing
-   Dipakai untuk setiap produk di PRODUK AWAL dan PRODUK AKHIR.
-========================================================= */
-let zfoodScannerReader=null;
-let zfoodScannerControls=null;
-let zfoodScannerTarget=null;
-let zfoodScannerBusy=false;
 
 async function openZfoodScanner(button){
   const field=button ? button.closest('.zfood-scan-field') : null;
@@ -14252,7 +14290,7 @@ function addProduct(type,options){
         QUANTITY
       &lt;/label&gt;
 
-      &lt;div class="quantity-tools"&gt;
+      &lt;div class="zfood-qty-row"&gt;
         &lt;input
           type="text"
           class="quantity-input"
@@ -14261,7 +14299,7 @@ function addProduct(type,options){
           autocomplete="off"
           oninput="updateQuantity(this)"
         &gt;
-        &lt;button type="button" class="quantity-calculator-btn"
+        &lt;button type="button" class="zfood-calc-open"
           onclick="openZfoodCalculator(this)" aria-label="Buka kalkulator" title="Kalkulator Qty"&gt;⌗&lt;/button&gt;
       &lt;/div&gt;
 
