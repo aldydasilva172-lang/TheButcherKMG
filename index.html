@@ -6766,6 +6766,18 @@ body
 <p>Sistem siap digunakan dan terhubung.</p>
 </div>
 </div>
+<div class="overview-card overview-media-card">
+<div class="overview-media-frame" id="dashboardMediaFrame">
+  <div class="overview-media-placeholder">
+    <span>▧</span>
+    <small>UPLOAD FOTO / VIDEO</small>
+  </div>
+</div>
+<div class="overview-media-copy">
+  <strong>Media</strong>
+  <p>Foto / Video</p>
+</div>
+</div>
 </div>
 <div class="dashboard-footer">
 <span>CREATED BY • <span style="color: #1976D2;">ALDI PRAYOGA</span>
@@ -19214,4 +19226,137 @@ function togglePassword(id,button){
   );
 }
 </script>
+
+
+<style id="dashboard-media-card-style">
+/* Kartu media baru di halaman awal setelah login */
+#dashboard .dashboard-overview{
+  grid-template-columns:repeat(3,minmax(0,1fr))!important;
+  align-items:stretch!important;
+}
+#dashboard .overview-card{
+  min-width:0!important;
+}
+#dashboard .overview-media-card{
+  min-height:82px!important;
+  gap:12px!important;
+}
+#dashboard .overview-media-frame{
+  width:76px;
+  height:56px;
+  flex:0 0 76px;
+  overflow:hidden;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  border-radius:10px;
+  background:#f2f4f6;
+  border:1px solid #e5e8eb;
+}
+#dashboard .overview-media-frame img,
+#dashboard .overview-media-frame video{
+  display:block;
+  width:100%;
+  height:100%;
+  object-fit:cover;
+}
+#dashboard .overview-media-placeholder{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:2px;
+  width:100%;
+  height:100%;
+  color:#9aa2ac;
+  text-align:center;
+}
+#dashboard .overview-media-placeholder span{
+  font-size:20px;
+  line-height:1;
+}
+#dashboard .overview-media-placeholder small{
+  font-size:6px;
+  font-weight:800;
+  letter-spacing:.3px;
+}
+#dashboard .overview-media-copy{min-width:0;}
+#dashboard .overview-media-copy strong{
+  display:block;
+  color:#292f36;
+  font-size:13px;
+  font-weight:800;
+}
+#dashboard .overview-media-copy p{
+  margin:4px 0 0;
+  color:#89919c;
+  font-size:10px;
+  line-height:1.4;
+}
+@media(max-width:800px){
+  #dashboard .dashboard-overview{
+    grid-template-columns:1fr!important;
+    gap:8px!important;
+  }
+  #dashboard .overview-media-card{
+    min-height:72px!important;
+    padding:12px 13px!important;
+  }
+  #dashboard .overview-media-frame{
+    width:70px;
+    height:48px;
+    flex-basis:70px;
+  }
+  #dashboard .overview-media-copy strong{font-size:11px!important;}
+  #dashboard .overview-media-copy p{font-size:8.5px!important;}
+}
+@media(orientation:landscape) and (max-height:480px){
+  #dashboard .overview-media-card{min-height:58px!important;padding:7px 9px!important;}
+  #dashboard .overview-media-frame{width:48px;height:36px;flex-basis:48px;}
+  #dashboard .overview-media-copy strong{font-size:8px!important;}
+  #dashboard .overview-media-copy p{font-size:6px!important;}
+}
+</style>
+
+<script id="dashboard-media-loader">
+/* Ganti nama file di bawah setelah foto/video di-upload.
+   Letakkan file media di folder yang sama dengan file HTML.
+   Mendukung JPG, PNG, WEBP, GIF, MP4, WEBM, dan OGG. */
+const DASHBOARD_MEDIA_FILE = "GANTI_NAMA_FILE_DI_SINI.jpg";
+(function loadDashboardMedia(){
+  const frame=document.getElementById("dashboardMediaFrame");
+  if(!frame) return;
+  const file=String(DASHBOARD_MEDIA_FILE||"").trim();
+  if(!file || file==="GANTI_NAMA_FILE_DI_SINI.jpg") return;
+
+  const ext=(file.split("?")[0].split("#")[0].split(".").pop()||"").toLowerCase();
+  const videoTypes={mp4:"video/mp4",webm:"video/webm",ogg:"video/ogg"};
+  let media;
+
+  if(videoTypes[ext]){
+    media=document.createElement("video");
+    media.autoplay=true;
+    media.muted=true;
+    media.loop=true;
+    media.playsInline=true;
+    media.setAttribute("playsinline","");
+    media.setAttribute("webkit-playsinline","");
+    media.controls=true;
+    const source=document.createElement("source");
+    source.src=file;
+    source.type=videoTypes[ext];
+    media.appendChild(source);
+  }else{
+    media=document.createElement("img");
+    media.alt="Foto media dashboard";
+    media.src=file;
+  }
+
+  media.onerror=function(){
+    frame.innerHTML='<div class="overview-media-placeholder"><span>!</span><small>FILE TIDAK DITEMUKAN</small></div>';
+  };
+  frame.replaceChildren(media);
+})();
+</script>
+
 </body></html>
