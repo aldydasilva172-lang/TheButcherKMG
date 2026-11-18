@@ -14187,48 +14187,47 @@ function renumberProducts(type){
 
 function processZfoodWeighedBarcode(input, rawValue){
 
+  // Barcode timbangan Z-FOOD: 13 digit, diawali 20.
+  // Contoh 2074298084156 = artikel 74298 dan qty 8,415 KG.
   const value = String(rawValue || '').replace(/\D/g, '');
 
-  // Khusus form Z-FOOD: barcode timbang 13 digit yang diawali 20.
-  if(value.length !== 13 || !/^20\d{11}$/.test(value)){
+  if(value.length !== 13 || value.substring(0, 2) !== '20'){
     return false;
   }
 
   const article = value.substring(2, 7);
-  const grams = parseInt(value.substring(7, 12), 10);
+  const grams = Number(value.substring(7, 12));
 
   if(!Number.isFinite(grams)) return false;
 
   const product = input.closest('.product');
   if(!product) return false;
 
-  // Cari kode artikel hasil potongan barcode di MASTER.
+  // Cocokkan artikel MASTER, termasuk jika formatnya memiliki nol di depan.
   const masterItem = Array.isArray(MASTER_DATA)
     ? MASTER_DATA.find(function(item){
-        return String(item.artikel || '').trim() === article;
+        const masterArticle = String(item.artikel || '').trim();
+        return masterArticle === article ||
+          masterArticle.replace(/^0+/, '') === article.replace(/^0+/, '');
       })
     : null;
 
-  // Ubah input menjadi artikel, bukan barcode timbang lengkap.
+  if(!masterItem) return false;
+
   input.value = article;
+  selectProduct(input, masterItem);
 
-  if(masterItem){
-    selectProduct(input, masterItem);
-
-    const quantityInput = product.querySelector('.quantity-input');
-    if(quantityInput){
-      quantityInput.value = (grams / 1000).toFixed(3).replace('.', ',');
-      updateQuantity(quantityInput);
-    }
-
-    const dropdown = product.querySelector('.dropdown');
-    if(dropdown) dropdown.classList.remove('show');
-
-    return true;
+  // Isi Qty otomatis dalam KG.
+  const quantityInput = product.querySelector('.quantity-input');
+  if(quantityInput){
+    quantityInput.value = (grams / 1000).toFixed(3).replace('.', ',');
+    updateQuantity(quantityInput);
   }
 
-  // Jika artikel tidak ditemukan di MASTER, biarkan pencarian artikel berjalan.
-  return false;
+  const dropdown = product.querySelector('.dropdown');
+  if(dropdown) dropdown.classList.remove('show');
+
+  return true;
 }
 
 
