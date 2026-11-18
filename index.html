@@ -14182,54 +14182,30 @@ function renumberProducts(type){
 
 
 /* =========================================================
-   SEARCH PRODUCT
+   Z-FOOD WEIGHED BARCODE (KHUSUS FORM Z-FOOD)
+   Format: 20 + 5 digit article + 5 digit gram + 1 digit check
 ========================================================= */
+function parseZfoodWeighedBarcode(value){
+  const code = String(value || '').trim();
 
-function processZfoodWeighedBarcode(input, rawValue){
+  if(!/^20\\d{11}$/.test(code)) return null;
 
-  // Barcode timbangan Z-FOOD: 13 digit, diawali 20.
-  // Contoh 2074298084156 = artikel 74298 dan qty 8,415 KG.
-  const value = String(rawValue || '').replace(/\D/g, '');
+  const article = code.substring(2, 7);
+  const gramsText = code.substring(7, 12);
+  const grams = Number(gramsText);
 
-  if(value.length !== 13 || value.substring(0, 2) !== '20'){
-    return false;
-  }
+  if(!Number.isFinite(grams)) return null;
 
-  const article = value.substring(2, 7);
-  const grams = Number(value.substring(7, 12));
-
-  if(!Number.isFinite(grams)) return false;
-
-  const product = input.closest('.product');
-  if(!product) return false;
-
-  // Cocokkan artikel MASTER, termasuk jika formatnya memiliki nol di depan.
-  const masterItem = Array.isArray(MASTER_DATA)
-    ? MASTER_DATA.find(function(item){
-        const masterArticle = String(item.artikel || '').trim();
-        return masterArticle === article ||
-          masterArticle.replace(/^0+/, '') === article.replace(/^0+/, '');
-      })
-    : null;
-
-  if(!masterItem) return false;
-
-  input.value = article;
-  selectProduct(input, masterItem);
-
-  // Isi Qty otomatis dalam KG.
-  const quantityInput = product.querySelector('.quantity-input');
-  if(quantityInput){
-    quantityInput.value = (grams / 1000).toFixed(3).replace('.', ',');
-    updateQuantity(quantityInput);
-  }
-
-  const dropdown = product.querySelector('.dropdown');
-  if(dropdown) dropdown.classList.remove('show');
-
-  return true;
+  return {
+    article: article,
+    qty: (grams / 1000).toFixed(3).replace('.', ',')
+  };
 }
 
+
+/* =========================================================
+   SEARCH PRODUCT
+========================================================= */
 
 function searchProduct(input){
 
@@ -14240,13 +14216,16 @@ function searchProduct(input){
   const product = input.closest('.product');
   if(!product) return;
 
-  const rawValue = String(input.value || '').trim();
+  const dropdown = product.querySelector('.dropdown');
 
-  if(processZfoodWeighedBarcode(input, rawValue)){
-    return;
+  // Jika hasil scan berupa barcode timbang 13 digit (diawali 20),
+  // ubah menjadi ARTICLE dan simpan Qty untuk diisikan saat produk dipilih.
+  const weighed = parseZfoodWeighedBarcode(input.value);
+  if(weighed){
+    input.value = weighed.article;
+    product.dataset.pendingWeighedQty = weighed.qty;
   }
 
-  const dropdown = product.querySelector('.dropdown');
   const keyword = String(input.value || '').trim().toLowerCase();
 
   if(keyword === ''){
@@ -14478,6 +14457,18 @@ function selectProduct(
 
   input.value =
     item.artikel || '';
+
+  // Qty hasil barcode timbang baru diterapkan setelah user
+  // memilih produk yang benar dari daftar MASTER.
+  const pendingQty = product.dataset.pendingWeighedQty || '';
+  if(pendingQty){
+    const quantityInput = product.querySelector('.quantity-input');
+    if(quantityInput){
+      quantityInput.value = pendingQty;
+      product.dataset.quantity = pendingQty;
+    }
+    delete product.dataset.pendingWeighedQty;
+  }
 
 
   const dropdown =
