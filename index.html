@@ -1984,24 +1984,40 @@ button
   font-weight:800;
   text-align:right
 }
-/* USER MANAGEMENT */
-.user-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px;margin:10px 0}
-.user-stat{padding:10px;border:1px solid rgba(255,255,255,.07);border-radius:11px;background:rgba(255,255,255,.035);min-width:0}
-.user-stat strong{display:block;font-size:19px;line-height:1.1}
-.user-stat span{display:block;margin-top:4px;color:#858c98;font-size:8px;font-weight:800}
-.user-search{width:100%;height:38px;margin:4px 0 9px;padding:0 11px;border-radius:9px;border:1px solid rgba(255,255,255,.10);outline:none;background:rgba(255,255,255,.045);color:#fff;font-size:11px}
-.user-list{display:flex;flex-direction:column;gap:7px;max-height:340px;overflow:auto}
-.user-card{padding:10px;border:1px solid rgba(255,255,255,.07);border-radius:11px;background:rgba(255,255,255,.035)}
+/* USER MANAGEMENT - MODERN ADMIN UI */
+.user-stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:13px 0 18px}
+.user-stat{position:relative;display:flex;align-items:center;gap:12px;width:100%;min-width:0;min-height:76px;padding:13px 14px;text-align:left;border:1px solid #e8ebf0;border-radius:16px;background:linear-gradient(145deg,#fff,#f8f9fb);color:#252a32;box-shadow:0 4px 14px rgba(25,35,50,.045);cursor:pointer;transition:transform .18s ease,border-color .18s ease,box-shadow .18s ease}
+.user-stat:active{transform:scale(.98)}
+.user-stat.active{border:1.5px solid #ff8a24;box-shadow:0 0 0 3px rgba(255,138,36,.11),0 5px 16px rgba(25,35,50,.06);background:#fffaf5}
+.user-stat-icon{display:flex;align-items:center;justify-content:center;flex:none;width:39px;height:39px;border-radius:12px;background:#f0f2f5;color:#626b78;font-size:18px;font-weight:900}
+.user-stat.total .user-stat-icon{background:#fff0e2;color:#f18424}
+.user-stat.online .user-stat-icon{background:#e8f9ef;color:#20ae65}
+.user-stat.offline .user-stat-icon{background:#eef1f5;color:#687386}
+.user-stat.pending .user-stat-icon{background:#fff4df;color:#e59a28}
+.user-stat-copy{min-width:0;display:flex;flex-direction:column;gap:4px}
+.user-stat strong{display:block;font-size:22px;line-height:1;font-weight:900;color:#202630}
+.user-stat span{display:block;color:#858d9a;font-size:9px;font-weight:850;letter-spacing:.65px}
+.user-stat-hint{margin-left:auto;color:#a3aab5;font-size:16px}
+.user-management-heading{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:4px 0 9px}
+.user-management-heading h3{margin:0!important}
+.user-filter-label{padding:5px 9px;border-radius:999px;background:#fff1e5;color:#e77a18;font-size:8px;font-weight:900;white-space:nowrap}
+.user-search{width:100%;height:43px;margin:5px 0 11px;padding:0 14px;border-radius:12px;border:1px solid #e4e8ee;outline:none;background:#f8f9fb;color:#252a32;font-size:11px;box-sizing:border-box}
+.user-search:focus{border-color:#ff9b48;box-shadow:0 0 0 3px rgba(255,138,36,.10);background:#fff}
+.user-list{display:flex;flex-direction:column;gap:9px;max-height:390px;overflow:auto;padding:1px 2px 4px}
+.user-card{padding:13px 14px;border:1px solid #e9edf2;border-radius:14px;background:#fff;box-shadow:0 3px 12px rgba(25,35,50,.035)}
 .user-card-top{display:flex;align-items:center;justify-content:space-between;gap:8px}
-.user-card-name{font-size:11px;font-weight:900;overflow-wrap:anywhere}
-.user-card-email{margin-top:3px;color:#858c98;font-size:9px;overflow-wrap:anywhere}
-.user-card-meta{display:grid;grid-template-columns:1fr 1fr;gap:5px 10px;margin-top:8px;color:#9aa1ac;font-size:8px;line-height:1.45}
-.user-card-meta b{color:#d7dbe1;font-weight:800}
-.user-state{flex:none;padding:4px 7px;border-radius:999px;font-size:7px;font-weight:900;letter-spacing:.3px}
-.user-state.online{color:#52e99a;background:rgba(53,232,137,.10);border:1px solid rgba(53,232,137,.2)}
-.user-state.offline{color:#aab1bb;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1)}
-.user-state.pending{color:#ffbd69;background:rgba(255,179,71,.10);border:1px solid rgba(255,179,71,.2)}
-@media(max-width:480px){.user-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.user-card-meta{grid-template-columns:1fr}}
+.user-card-identity{display:flex;align-items:center;gap:10px;min-width:0}
+.user-avatar{display:flex;align-items:center;justify-content:center;flex:none;width:36px;height:36px;border-radius:11px;background:#fff0e3;color:#e77c20;font-size:13px;font-weight:900;text-transform:uppercase}
+.user-card-name{font-size:12px;font-weight:900;color:#242a33;overflow-wrap:anywhere}
+.user-card-email{margin-top:3px;color:#8a93a1;font-size:9px;overflow-wrap:anywhere}
+.user-card-meta{display:grid;grid-template-columns:1fr 1fr;gap:7px 12px;margin-top:12px;padding-top:10px;border-top:1px solid #f0f2f5;color:#8a93a1;font-size:8px;line-height:1.5}
+.user-card-meta b{color:#454d59;font-weight:800}
+.user-state{flex:none;padding:5px 8px;border-radius:999px;font-size:7px;font-weight:900;letter-spacing:.45px}
+.user-state.online{color:#169653;background:#e9f9f0;border:1px solid #d4f2e0}
+.user-state.offline{color:#7d8795;background:#f0f2f5;border:1px solid #e7eaf0}
+.user-state.pending{color:#c98216;background:#fff5e4;border:1px solid #f8e7c4}
+@media(min-width:600px){.user-stats{grid-template-columns:repeat(4,minmax(0,1fr))}.user-stat{min-height:88px;padding:12px}.user-stat-icon{width:34px;height:34px}}
+@media(max-width:380px){.user-stats{gap:8px}.user-stat{padding:10px;gap:8px}.user-stat-icon{width:32px;height:32px}.user-stat strong{font-size:20px}.user-card-meta{grid-template-columns:1fr}}
 
 .admin-section
 {
@@ -7094,15 +7110,15 @@ body
 </div>
 <button class="btn btn-secondary" onclick="openResetPasswordConfirm()" > KIRIM RESET PASSWORD </button>
 <div id="adminSection" class="admin-section hidden" >
-<h3> USER MANAGEMENT </h3>
+<div class="user-management-heading"><h3> USER MANAGEMENT </h3><span class="user-filter-label">LIVE MONITORING</span></div>
 <div class="user-stats">
-  <div class="user-stat"><strong id="userTotalCount">0</strong><span>TOTAL AKUN</span></div>
-  <div class="user-stat"><strong id="userOnlineCount" style="color:#52e99a">0</strong><span>ONLINE</span></div>
-  <div class="user-stat"><strong id="userOfflineCount">0</strong><span>OFFLINE</span></div>
-  <div class="user-stat"><strong id="userPendingCount" style="color:#ffbd69">0</strong><span>PENDING</span></div>
+  <button type="button" class="user-stat total active" data-user-filter="all" onclick="setManagedUserFilter('all')"><span class="user-stat-icon">▦</span><span class="user-stat-copy"><strong id="userTotalCount">0</strong><span>TOTAL AKUN</span></span><span class="user-stat-hint">›</span></button>
+  <button type="button" class="user-stat online" data-user-filter="online" onclick="setManagedUserFilter('online')"><span class="user-stat-icon">●</span><span class="user-stat-copy"><strong id="userOnlineCount">0</strong><span>ONLINE</span></span><span class="user-stat-hint">›</span></button>
+  <button type="button" class="user-stat offline" data-user-filter="offline" onclick="setManagedUserFilter('offline')"><span class="user-stat-icon">◌</span><span class="user-stat-copy"><strong id="userOfflineCount">0</strong><span>OFFLINE</span></span><span class="user-stat-hint">›</span></button>
+  <button type="button" class="user-stat pending" data-user-filter="pending" onclick="setManagedUserFilter('pending')"><span class="user-stat-icon">◷</span><span class="user-stat-copy"><strong id="userPendingCount">0</strong><span>PENDING</span></span><span class="user-stat-hint">›</span></button>
 </div>
-<h3 style="margin-top:14px"> SEMUA AKUN TERDAFTAR </h3>
-<input id="userManagementSearch" class="user-search" type="search" placeholder="Cari username atau email..." oninput="filterManagedUsers()">
+<div class="user-management-heading"><h3 id="managedUsersTitle"> SEMUA AKUN TERDAFTAR </h3><span id="managedUsersResultCount" class="user-filter-label">0 AKUN</span></div>
+<input id="userManagementSearch" class="user-search" type="search" placeholder="⌕  Cari username atau email..." oninput="filterManagedUsers()">
 <div id="managedUserList" class="user-list"><div class="history-empty">Memuat daftar akun...</div></div>
 <div class="admin-section" style="margin-top:15px;padding-top:14px">
 <h3> USER MENUNGGU PERSETUJUAN </h3>
@@ -8207,25 +8223,44 @@ function renderManagedUsers(){
   filterManagedUsers();
 }
 
+let managedUserFilter="all";
+window.setManagedUserFilter=function(filter){
+  managedUserFilter=["all","online","offline","pending"].includes(filter)?filter:"all";
+  document.querySelectorAll("[data-user-filter]").forEach(button=>button.classList.toggle("active",button.dataset.userFilter===managedUserFilter));
+  const titles={all:"SEMUA AKUN TERDAFTAR",online:"AKUN SEDANG ONLINE",offline:"AKUN OFFLINE",pending:"AKUN MENUNGGU PERSETUJUAN"};
+  const title=$("managedUsersTitle");if(title)title.textContent=titles[managedUserFilter];
+  filterManagedUsers();
+};
+
 window.filterManagedUsers=function(){
   if(currentProfile?.role!=="admin")return;
   const list=$("managedUserList");
   if(!list)return;
   const term=String($("userManagementSearch")?.value||"").trim().toLowerCase();
-  const users=managedUsersCache.filter(u=>`${u.username||""} ${u.email||""} ${u.role||""}`.toLowerCase().includes(term));
-  if(!users.length){list.innerHTML='<div class="history-empty">Tidak ada akun yang cocok.</div>';return;}
+  const now=Date.now();
+  const users=managedUsersCache.filter(u=>{
+    const isPending=u.status==="pending";
+    const isOnline=!isPending&&u.status==="approved"&&u.isOnline===true&&u.lastSeen&&now-Number(u.lastSeen)<=ONLINE_WINDOW;
+    const status= isPending?"pending":isOnline?"online":"offline";
+    const matchesFilter=managedUserFilter==="all"||status===managedUserFilter;
+    const matchesSearch=`${u.username||""} ${u.email||""} ${u.role||""}`.toLowerCase().includes(term);
+    return matchesFilter&&matchesSearch;
+  });
+  const resultCount=$("managedUsersResultCount");if(resultCount)resultCount.textContent=`${users.length} AKUN`;
+  if(!users.length){list.innerHTML='<div class="history-empty">Tidak ada akun pada kategori ini.</div>';return;}
   list.innerHTML="";
   users.sort((a,b)=>String(a.username||a.email||"").localeCompare(String(b.username||b.email||"")));
   users.forEach(u=>{
     const isPending=u.status==="pending";
-    const isOnline=!isPending&&u.isOnline===true&&u.lastSeen&&nowSafe()-Number(u.lastSeen)<=ONLINE_WINDOW;
+    const isOnline=!isPending&&u.status==="approved"&&u.isOnline===true&&u.lastSeen&&now-Number(u.lastSeen)<=ONLINE_WINDOW;
     const statusClass=isPending?"pending":isOnline?"online":"offline";
     const statusText=isPending?"PENDING":isOnline?"ONLINE":"OFFLINE";
+    const username=u.username||"Tanpa username";
+    const initials=String(username).trim().slice(0,1)||"?";
     const card=document.createElement("div");
     card.className="user-card";
     card.innerHTML=`
-      <div class="user-card-top"><div class="user-card-name">${escapeHtml(u.username||"Tanpa username")}</div><span class="user-state ${statusClass}">${statusText}</span></div>
-      <div class="user-card-email">${escapeHtml(u.email||"-")}</div>
+      <div class="user-card-top"><div class="user-card-identity"><div class="user-avatar">${escapeHtml(initials)}</div><div><div class="user-card-name">${escapeHtml(username)}</div><div class="user-card-email">${escapeHtml(u.email||"-")}</div></div></div><span class="user-state ${statusClass}">${statusText}</span></div>
       <div class="user-card-meta">
         <div>Role: <b>${escapeHtml(u.role||"user")}</b></div>
         <div>Status akun: <b>${escapeHtml(u.status||"-")}</b></div>
