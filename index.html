@@ -12969,6 +12969,9 @@ input{
 .quantity-calculator-btn{width:46px;flex:none;border:1px solid #f2c08e;border-radius:10px;background:#fff7ef;color:#df741c;font-size:22px;font-weight:800;cursor:pointer}
 #zfoodCalculatorModal{position:fixed;inset:0;z-index:100050;display:none;align-items:center;justify-content:center;padding:18px;background:rgba(12,16,22,.68)}
 #zfoodCalculatorModal.on{display:flex}
+.zfood-calculator-minimize{width:34px;height:34px;border:0;border-radius:50%;background:#fff0e2;color:#d96c12;font-size:20px;font-weight:800;margin-left:auto;margin-right:7px}
+#zfoodCalculatorRestore{display:none;position:fixed;right:18px;bottom:22px;z-index:100051;border:0;border-radius:999px;padding:13px 17px;background:#e87516;color:#fff;font-weight:800;box-shadow:0 8px 24px rgba(0,0,0,.25);align-items:center;gap:8px}
+#zfoodCalculatorRestore.on{display:flex}
 .zfood-calculator{width:min(100%,360px);padding:17px;background:#f7f8fa;border-radius:24px;box-shadow:0 24px 70px rgba(0,0,0,.35)}
 .zfood-calculator-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;color:#252a31;font-weight:800}
 .zfood-calculator-close{width:34px;height:34px;border:0;border-radius:50%;background:#e9edf1;font-size:22px;color:#59616b}
@@ -13478,6 +13481,7 @@ input{
   &lt;div class="zfood-calculator"&gt;
     &lt;div class="zfood-calculator-head"&gt;
       &lt;span&gt;KALKULATOR QTY&lt;/span&gt;
+      &lt;button type="button" class="zfood-calculator-minimize" onclick="minimizeZfoodCalculator()" aria-label="Minimalkan" title="Minimalkan agar produk terlihat"&gt;−&lt;/button&gt;
       &lt;button type="button" class="zfood-calculator-close" onclick="closeZfoodCalculator()" aria-label="Tutup"&gt;×&lt;/button&gt;
     &lt;/div&gt;
     &lt;div class="zfood-calculator-display"&gt;
@@ -13509,6 +13513,7 @@ input{
     &lt;/div&gt;
   &lt;/div&gt;
 &lt;/div&gt;
+&lt;button type="button" id="zfoodCalculatorRestore" onclick="restoreZfoodCalculator()"&gt;⌗ KALKULATOR QTY&lt;/button&gt;
 
 &lt;div id="zfoodScannerModal" aria-hidden="true"&gt;
   &lt;div class="zfood-scanner-card"&gt;
@@ -13555,9 +13560,27 @@ function openZfoodCalculator(button){
   modal.setAttribute('aria-hidden','false');
 }
 
+function minimizeZfoodCalculator(){
+  const modal=document.getElementById('zfoodCalculatorModal');
+  const restore=document.getElementById('zfoodCalculatorRestore');
+  if(modal){modal.classList.remove('on');modal.setAttribute('aria-hidden','true');}
+  if(restore)restore.classList.add('on');
+  // Target dan angka kalkulator tetap disimpan saat diminimalkan.
+}
+
+function restoreZfoodCalculator(){
+  const modal=document.getElementById('zfoodCalculatorModal');
+  const restore=document.getElementById('zfoodCalculatorRestore');
+  if(restore)restore.classList.remove('on');
+  if(modal){modal.classList.add('on');modal.setAttribute('aria-hidden','false');}
+  renderZfoodCalculator();
+}
+
 function closeZfoodCalculator(){
   const modal=document.getElementById('zfoodCalculatorModal');
+  const restore=document.getElementById('zfoodCalculatorRestore');
   if(modal){modal.classList.remove('on');modal.setAttribute('aria-hidden','true');}
+  if(restore)restore.classList.remove('on');
   zfoodCalcTarget=null;
 }
 
